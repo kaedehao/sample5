@@ -18,7 +18,9 @@ SOURCES += main.cpp\
     sample1.cpp \
     sample5.cpp \
     sample2.cpp \
-    mouse.cpp
+    mouse.cpp \
+    utility.c \
+    DeviceMemoryLogger.cpp
 
 HEADERS  += mainwindow.h \
     glwidget.h \
@@ -29,7 +31,9 @@ HEADERS  += mainwindow.h \
     NsightHelper.h \
     sample2.h \
     src/phong.h \
-    mouse.h
+    mouse.h \
+    utility.h \
+    DeviceMemoryLogger.h
 
 FORMS    += mainwindow.ui
 
@@ -37,6 +41,8 @@ MOC_DIR = moc
 UI_HEADERS_DIR = ui
 OBJECTS_DIR = obj
 
+mac: LIBS += -framework GLUT
+else:unix|win32: LIBS += -lGLUT
 
 # Added stuff
 INCLUDEPATH +=./include /opt/local/include
@@ -48,7 +54,14 @@ DESTDIR=./
 CONFIG += console
 CONFIG -= app_bundle
 
+
+# use this to suppress some warning from boost
+QMAKE_CXXFLAGS_WARN_ON += "-Wno-unused-parameter"
+#QMAKE_CXXFLAGS += -msse -msse2 -msse3
+macx:QMAKE_CXXFLAGS += -arch x86_64
 macx:INCLUDEPATH += /usr/local/include/
+# define the _DEBUG flag for the graphics lib
+
 unix:LIBS += -L/usr/local/lib
 
 #Optix Stuff, so any optix program that we wish to turn into PTX code

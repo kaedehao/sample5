@@ -64,8 +64,11 @@ public:
     void  setUseVBOBuffer( bool onoff ) { m_use_vbo_buffer = onoff; }
     bool  usesVBOBuffer() { return m_use_vbo_buffer; }
 
+    // Return the output buffer to be displayed
     optix::Buffer getOutputBuffer();
 
+    // Accessor
+    optix::Context& getContext() { return m_context; }
 
     // a mutator to set the width and height of our scene
     inline void setSize(unsigned int _width, unsigned int _height){m_width = _width; m_height = _height;}

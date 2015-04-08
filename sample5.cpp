@@ -395,6 +395,11 @@ QImage Sample5::trace( const RayGenCameraData& camera_data )
     m_context["W"]->setFloat( camera_data.W );
     m_context["frame_number"]->setUint( m_frame_number++ );
 
+//    m_context["eye"]->setFloat( make_float3( 0.0f, 0.0f, 5.0f ) );
+//    m_context["U"]->setFloat( make_float3( 1.0f, 0.0f, 0.0f ) );
+//    m_context["V"]->setFloat( make_float3( 0.0f, 1.0f, 0.0f ) );
+//    m_context["W"]->setFloat( make_float3( 0.0f, 0.0f, -1.0f ) );
+
     Buffer buffer = m_context["output_buffer"]->getBuffer();
     RTsize buffer_width, buffer_height;
     buffer->getSize( buffer_width, buffer_height );

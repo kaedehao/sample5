@@ -1,9 +1,27 @@
 #include "glwidget.h"
-#include <iostream>
+
+#if defined(__APPLE__)
+#  include <GLUT/glut.h>
+#  define GL_FRAMEBUFFER_SRGB_EXT           0x8DB9
+#  define GL_FRAMEBUFFER_SRGB_CAPABLE_EXT   0x8DBA
+#else
+#  include <GL/glew.h>
+#  if defined(_WIN32)
+#    include <GL/wglew.h>
+#  endif
+#  include <GL/glut.h>
+#endif
 
 #include "mouse.h"
+#include <DeviceMemoryLogger.h>
+
+#include <iostream>
+#include <sstream>
 
 #include <NsightHelper.h>
+
+#include <QKeyEvent>
+#include <QMouseEvent>
 
 using namespace optix;
 
@@ -11,7 +29,19 @@ using namespace optix;
 PinholeCamera* glWidget::m_camera               = 0;
 Sample5*       glWidget::m_scene                = 0;
 
+double         glWidget::m_last_frame_time      = 0.0;
+unsigned int   glWidget::m_last_frame_count     = 0;
 unsigned int   glWidget::m_frame_count          = 0;
+
+bool           glWidget::m_display_fps          = true;
+double         glWidget::m_fps_update_threshold = 0.5;
+char           glWidget::m_fps_text[32];
+
+float3         glWidget::m_text_color           = make_float3( 0.95f );
+float3         glWidget::m_text_shadow_color    = make_float3( 0.10f );
+bool           glWidget::m_print_mem_usage      = false;
+
+glWidget::contDraw_E glWidget::m_cur_continuous_mode = CDNone;
 
 bool           glWidget::m_display_frames       = true;
 bool           glWidget::m_save_frames_to_file  = false;
@@ -91,10 +121,61 @@ void glWidget::resizeGL(int width, int height)
 //    glMatrixMode(GL_MODELVIEW);
 }
 
-void glWidget::timerEvent(QTimerEvent *_event){
+void glWidget::keyPressEvent(QKeyEvent* event)
+{
+    switch(event->key()) {
+    case Qt::Key_Escape:
+        std::cout<<"key pressed"<<std::endl;
+        close();
+        break;
+    case Qt::Key_Left:
+        posx-=10;
+        updateGL();
+
+        break;
+    case Qt::Key_Right:
+        posx+=10;
+        updateGL();
+        break;
+
+    case Qt::Key_Up:
+        posy+=10;
+        updateGL();
+        break;
+
+    case Qt::Key_Down:
+        posy-=10;
+        updateGL();
+        break;
+
+    default:
+        event->ignore();
+        break;
+    }
+}
+
+void glWidget::mousePressEvent ( QMouseEvent * event)
+{
+    if(event->button() == Qt::LeftButton){
+        std::cout<<"mouse pressed"<<std::endl;
+    }
+
+}
+
+void glWidget::mouseMoveEvent ( QMouseEvent * event)
+{
+    if(event->buttons() == Qt::LeftButton){
+        std::cout<<event->x()<<", "<<event->y()<<std::endl;
+    }
+
+}
+
+void glWidget::timerEvent(QTimerEvent *_event)
+{
     updateGL();
 }
 
+//----------------------------------------------------------------------------------------------------------------------
 void glWidget::paintGL()
 {
     //glutSetWindowTitle(window_title);
@@ -144,7 +225,10 @@ void glWidget::paintGL()
     glOrtho(0, 1, 0, 1, -1, 1 );
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
+    gluLookAt(posx,posy,1.0,posx,posy,0.0,0.0,-1.0,0.0);
+
     glViewport(0, 0, buffer_width, buffer_height);
+
 
     display();
 }
@@ -153,37 +237,62 @@ void glWidget::display()
 {
     bool display_requested = true;
 
-      try {
-        // render the scene
-        float3 eye, U, V, W;
-        m_camera->getEyeUVW( eye, U, V, W );
-        // Don't be tempted to just start filling in the values outside of a constructor,
-        // because if you add a parameter it's easy to forget to add it here.
+    try {
+      // render the scene
+      float3 eye, U, V, W;
+      m_camera->getEyeUVW( eye, U, V, W );
+      // Don't be tempted to just start filling in the values outside of a constructor,
+      // because if you add a parameter it's easy to forget to add it here.
 
-        Sample5::RayGenCameraData camera_data( eye, U, V, W );
+      Sample5::RayGenCameraData camera_data( eye, U, V, W );
 
-        {
-          nvtx::ScopedRange r( "trace" );
-          m_scene->trace( camera_data, display_requested );
-        }
-
-        // Always count rendered frames
-        ++m_frame_count;
-
-        if( display_requested && m_display_frames ) {
-          // Only enable for debugging
-          // glClearColor(1.0, 0.0, 0.0, 0.0);
-          // glClear(GL_COLOR_BUFFER_BIT);
-
-          nvtx::ScopedRange r( "displayFrame" );
-          displayFrame();
-        }
-      } catch( Exception& e ){
-        //sutilReportError( e.getErrorString().c_str() );
-        std::cout<<"Error Expection Caught #2"<<std::endl;
-        exit(2);
+      {
+        nvtx::ScopedRange r( "trace" );
+        m_scene->trace( camera_data, display_requested );
       }
 
+      // Always count rendered frames
+      ++m_frame_count;
+
+      if( display_requested && m_display_frames ) {
+        // Only enable for debugging
+        // glClearColor(1.0, 0.0, 0.0, 0.0);
+        // glClear(GL_COLOR_BUFFER_BIT);
+
+        nvtx::ScopedRange r( "displayFrame" );
+        displayFrame();
+      }
+    } catch( Exception& e ){
+      //sutilReportError( e.getErrorString().c_str() );
+      std::cout<<"Error Expection Caught #2"<<std::endl;
+      exit(2);
+    }
+
+    // Do not draw text on 1st frame -- issue on linux causes problems with
+    // glDrawPixels call if drawText glutBitmapCharacter is called on first frame.
+    if ( m_display_fps && m_cur_continuous_mode != CDNone && m_frame_count > 1 ) {
+      // Output fps
+      double current_time;
+      CurrentTime( &current_time );
+      double dt = current_time - m_last_frame_time;
+      if( dt > m_fps_update_threshold ) {
+        sprintf( m_fps_text, "fps: %7.2f", (m_frame_count - m_last_frame_count) / dt );
+
+        m_last_frame_time = current_time;
+        m_last_frame_count = m_frame_count;
+      } else if( m_frame_count == 1 ) {
+        sprintf( m_fps_text, "fps: %7.2f", 0.f );
+      }
+
+      drawText( m_fps_text, 10.0f, 10.0f, GLUT_BITMAP_8_BY_13 );
+    }
+
+    if( m_print_mem_usage ) {
+      // Output memory
+      std::ostringstream str;
+      DeviceMemoryLogger::logCurrentMemoryUsage(m_scene->getContext(), str);
+      drawText( str.str(), 10.0f, 26.0f, GLUT_BITMAP_8_BY_13 );
+    }
 }
 
 void glWidget::displayFrame()
@@ -337,4 +446,28 @@ void glWidget::displayFrame()
     if (m_use_sRGB && m_sRGB_supported && sRGB) {
       glDisable(GL_FRAMEBUFFER_SRGB_EXT);
     }
+}
+
+void glWidget::drawText( const std::string& text, float x, float y, void* font )
+{
+  // Save state
+  glPushAttrib( GL_CURRENT_BIT | GL_ENABLE_BIT );
+
+  glDisable( GL_TEXTURE_2D );
+  glDisable( GL_LIGHTING );
+  glDisable( GL_DEPTH_TEST);
+
+  glColor3fv( &( m_text_shadow_color.x) ); // drop shadow
+  // Shift shadow one pixel to the lower right.
+  glWindowPos2f(x + 1.0f, y - 1.0f);
+  for( std::string::const_iterator it = text.begin(); it != text.end(); ++it )
+    glutBitmapCharacter( font, *it );
+
+  glColor3fv( &( m_text_color.x) );        // main text
+  glWindowPos2f(x, y);
+  for( std::string::const_iterator it = text.begin(); it != text.end(); ++it )
+    glutBitmapCharacter( font, *it );
+
+  // Restore state
+  glPopAttrib();
 }
