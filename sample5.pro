@@ -58,6 +58,7 @@ CONFIG -= app_bundle
 # use this to suppress some warning from boost
 QMAKE_CXXFLAGS_WARN_ON += "-Wno-unused-parameter"
 #QMAKE_CXXFLAGS += -msse -msse2 -msse3
+QMAKE_CXXFLAGS_WARN_ON += "-Wno-ignored-qualifiers"
 macx:QMAKE_CXXFLAGS += -arch x86_64
 macx:INCLUDEPATH += /usr/local/include/
 # define the _DEBUG flag for the graphics lib

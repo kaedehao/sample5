@@ -56,7 +56,7 @@ public:
     //From SampleScene
     void initScene( InitialCameraData &camera_data );
     void trace( const RayGenCameraData& camera_data, bool& display );
-    QImage trace( const RayGenCameraData &camera_data );
+    void trace( const RayGenCameraData &camera_data );
 
     void  setNumDevices( int ndev );
     void  enableCPURendering(bool enable);
@@ -71,8 +71,13 @@ public:
     // SampleScene::cleanUp() explicitly.
     void cleanUp();
 
+
     // Accessor
     optix::Context& getContext() { return m_context; }
+
+    // Scene API
+    void updateMaterial( float refraction_index );
+    void updateGeometry( float radius );
 
     // a mutator to set the width and height of our scene
     inline void setSize(unsigned int _width, unsigned int _height){m_width = _width; m_height = _height;}

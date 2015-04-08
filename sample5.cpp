@@ -392,7 +392,7 @@ Sample5::trace( const RayGenCameraData& camera_data, bool& display )
   trace(camera_data);
 }
 
-QImage Sample5::trace( const RayGenCameraData& camera_data )
+void Sample5::trace( const RayGenCameraData& camera_data )
 {
     //launch it
     m_context["eye"]->setFloat( camera_data.eye );
@@ -414,7 +414,7 @@ QImage Sample5::trace( const RayGenCameraData& camera_data )
                        static_cast<unsigned int>(buffer_width),
                        static_cast<unsigned int>(buffer_height) );
 
-    QImage img(m_width,m_height,QImage::Format_RGB32);
+//    QImage img(m_width,m_height,QImage::Format_RGB32);
 //    QColor color;
 //    int idx;
 //    void* data = getOutputBuffer()->map();
@@ -455,5 +455,42 @@ QImage Sample5::trace( const RayGenCameraData& camera_data )
 //    img.save("sample5.png","PNG");
 //    std::cout<<"sample5 image saved!"<<std::endl;
 
-    return img;
+//    return img;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+void Sample5::updateGeometry( float radius)//, float center )
+{
+    Group            top_level_group = m_context["top_object"]-> getGroup();
+    Transform        transform       = top_level_group->getChild<Transform>( 0 );
+    GeometryGroup    geometrygroup   = transform->getChild<GeometryGroup>();
+    GeometryInstance instance        = geometrygroup->getChild( 0 );
+    Geometry         geometry          = instance->getGeometry();
+
+    // Sphere
+    //geometry["sphere"]->setFloat( center, 0, 0, radius );
+
+    // Sphere Shell
+    geometry["radius2"]->setFloat( radius );        // Set Radius
+    //geometry["center"]->setFloat( center, 0, 0 );   // set center
+
+    // Mark Dirty
+    int childCount = top_level_group->getChildCount() - 1;
+    for ( int i = 0; i < childCount; i++) {
+        transform = top_level_group->getChild<Transform>( i );
+        geometrygroup = transform->getChild<GeometryGroup>();
+        geometrygroup->getAcceleration()->markDirty();
+    }
+    top_level_group->getAcceleration()->markDirty();
+}
+
+void Sample5::updateMaterial( float refraction_index )
+{
+    Group            top_level_group = m_context["top_object"]-> getGroup();
+    Transform        transform       = top_level_group->getChild<Transform>( 0 );
+    GeometryGroup    geometrygroup   = transform->getChild<GeometryGroup>();
+    GeometryInstance instance        = geometrygroup->getChild( 0 );
+    Material         material        = instance->getMaterial( 0 );
+
+    material["refraction_index"]->setFloat( refraction_index );
 }

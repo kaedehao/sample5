@@ -26,6 +26,8 @@ public:
     explicit glWidget(QWidget* _parent = 0);
     ~glWidget();
 
+    static Sample5* getScene(){ return m_scene; }
+
 protected:
     void resizeGL(int width, int height);
     void initializeGL();
@@ -36,7 +38,6 @@ protected:
     void mousePressEvent(QMouseEvent *event);
 
     void timerEvent(QTimerEvent* _event);
-
 
     enum contDraw_E { CDNone=0, CDProgressive=1, CDAnimated=2, CDBenchmark=3, CDBenchmarkTimed=4 };
 

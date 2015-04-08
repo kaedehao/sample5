@@ -109,6 +109,49 @@ void glWidget::initializeGL()
 //    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
 
       //startTimer(0);
+
+    int buffer_width;
+    int buffer_height;
+    try {
+      // Set up scene
+      Sample5::InitialCameraData camera_data;
+      m_scene->initScene( camera_data );
+
+      //if( m_initial_window_width > 0 && m_initial_window_height > 0)
+        //m_scene->resize( m_initial_window_width, m_initial_window_height );
+
+      //if ( !m_camera_pose.empty() )
+        //camera_data = Sample5::InitialCameraData( m_camera_pose );
+
+      // Initialize camera according to scene params
+      m_camera = new PinholeCamera( camera_data.eye,
+                                    camera_data.lookat,
+                                    camera_data.up,
+                                    -1.0f, // hfov is ignored when using keep vertical
+                                    camera_data.vfov,
+                                    PinholeCamera::KeepVertical );
+
+      Buffer buffer = m_scene->getOutputBuffer();
+      RTsize buffer_width_rts, buffer_height_rts;
+      buffer->getSize( buffer_width_rts, buffer_height_rts );
+      buffer_width  = static_cast<int>(buffer_width_rts);
+      buffer_height = static_cast<int>(buffer_height_rts);
+      //m_mouse = new Mouse( m_camera, buffer_width, buffer_height );
+    } catch( Exception& e ){
+      sutilReportError( e.getErrorString().c_str() );
+      std::cout<<"Error Expection Caught # 1"<<std::endl;
+      exit(2);
+    }
+
+    // Initialize state
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, 1, 0, 1, -1, 1 );
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+
+    glViewport(0, 0, buffer_width, buffer_height);
 }
 
 void glWidget::resizeGL(int width, int height)
@@ -157,16 +200,17 @@ void glWidget::keyPressEvent(QKeyEvent* event)
     }
 }
 
+float color = 0;
 void glWidget::mousePressEvent ( QMouseEvent * event)
 {
     if(event->button() == Qt::LeftButton){
-        m_print_mem_usage = !m_print_mem_usage;
-        m_display_fps = !m_display_fps;
+        //m_camera->eye.x -= 10.0f;
         updateGL();
     }
 
     if(event->button() == Qt::RightButton){
-        m_camera->eye.x -= 10.0f;
+        m_print_mem_usage = !m_print_mem_usage;
+        m_display_fps = !m_display_fps;
         updateGL();
     }
 }
@@ -191,53 +235,7 @@ void glWidget::paintGL()
     //glutReshapeWindow(width, height);
 
 
-    int buffer_width;
-    int buffer_height;
-    try {
-      // Set up scene
-      Sample5::InitialCameraData camera_data;
-      m_scene->initScene( camera_data );
-
-      //if( m_initial_window_width > 0 && m_initial_window_height > 0)
-        //m_scene->resize( m_initial_window_width, m_initial_window_height );
-
-      //if ( !m_camera_pose.empty() )
-        //camera_data = Sample5::InitialCameraData( m_camera_pose );
-
-      // Initialize camera according to scene params
-      m_camera = new PinholeCamera( camera_data.eye,
-                                    camera_data.lookat,
-                                    camera_data.up,
-                                    -1.0f, // hfov is ignored when using keep vertical
-                                    camera_data.vfov,
-                                    PinholeCamera::KeepVertical );
-
-      Buffer buffer = m_scene->getOutputBuffer();
-      RTsize buffer_width_rts, buffer_height_rts;
-      buffer->getSize( buffer_width_rts, buffer_height_rts );
-      buffer_width  = static_cast<int>(buffer_width_rts);
-      buffer_height = static_cast<int>(buffer_height_rts);
-      //m_mouse = new Mouse( m_camera, buffer_width, buffer_height );
-    } catch( Exception& e ){
-      sutilReportError( e.getErrorString().c_str() );
-      std::cout<<"Error Expection Caught # 1"<<std::endl;
-      exit(2);
-    }
-
-
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    // Initialize state
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glOrtho(0, 1, 0, 1, -1, 1 );
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-
-
-    glViewport(0, 0, buffer_width, buffer_height);
-
-
     display();
     //gluLookAt(posx,posy,1.0,posx,posy,0.0,0.0,-1.0,0.0);
 }
@@ -336,7 +334,7 @@ void glWidget::displayFrame()
     if( m_scene->usesVBOBuffer() ){
       vboId = buffer->getGLBOId();
     }
-    std::cout<<"here"<<std::endl;
+    //std::cout<<"here"<<std::endl;
 
     if (vboId)
     {
