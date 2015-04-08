@@ -67,6 +67,10 @@ public:
     // Return the output buffer to be displayed
     optix::Buffer getOutputBuffer();
 
+    // This cleans up the Context.  If you override it, you should call
+    // SampleScene::cleanUp() explicitly.
+    void cleanUp();
+
     // Accessor
     optix::Context& getContext() { return m_context; }
 

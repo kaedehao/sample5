@@ -20,6 +20,15 @@ extern "C" {
 
 /************************************
  **
+ **    Error checking helpers
+ **
+ ***********************************/
+
+void sutilReportError(const char* message);
+
+
+/************************************
+ **
  **    Display helper functions
  **
  ***********************************/
@@ -34,7 +43,7 @@ extern "C" {
 /* Get current time in seconds for benchmarking/timing purposes.
  *   current_time      : return param for the current time in double
  */
-RTresult  CurrentTime( double* current_time );
+RTresult  sutilCurrentTime( double* current_time );
 
 
 #ifdef __cplusplus

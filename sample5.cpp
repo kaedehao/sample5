@@ -37,6 +37,12 @@ Sample5::~Sample5(){
     m_context = 0;
 }
 
+void Sample5::cleanUp()
+{
+  m_context->destroy();
+  m_context = 0;
+}
+
 const char* const Sample5::ptxpath( const std::string& target, const std::string& base )
 {
     static std::string path;
@@ -395,10 +401,10 @@ QImage Sample5::trace( const RayGenCameraData& camera_data )
     m_context["W"]->setFloat( camera_data.W );
     m_context["frame_number"]->setUint( m_frame_number++ );
 
-//    m_context["eye"]->setFloat( make_float3( 0.0f, 0.0f, 5.0f ) );
-//    m_context["U"]->setFloat( make_float3( 1.0f, 0.0f, 0.0f ) );
-//    m_context["V"]->setFloat( make_float3( 0.0f, 1.0f, 0.0f ) );
-//    m_context["W"]->setFloat( make_float3( 0.0f, 0.0f, -1.0f ) );
+    m_context["eye"]->setFloat( make_float3( 0.0f, 0.0f, 5.0f ) );
+    m_context["U"]->setFloat( make_float3( 1.0f, 0.0f, 0.0f ) );
+    m_context["V"]->setFloat( make_float3( 0.0f, 1.0f, 0.0f ) );
+    m_context["W"]->setFloat( make_float3( 0.0f, 0.0f, -1.0f ) );
 
     Buffer buffer = m_context["output_buffer"]->getBuffer();
     RTsize buffer_width, buffer_height;

@@ -104,13 +104,10 @@ linux:QMAKE_LIBDIR += $$CUDA_DIR/lib64
 QMAKE_LIBDIR += $$CUDA_SDK/common/lib
 macx:QMAKE_LIBDIR += /Developer/OptiX/lib64
 linux:QMAKE_LIBDIR += /usr/local/OptiX/lib64
-macx:QMAKE_LIBDIR += sutil
-linux:QMAKE_LIBDIR+= /usr/local/OptiX/SDK/sutil
 
 #Add our cuda and optix libraries
 LIBS += -lcudart
 LIBS += -loptix
-#LIBS += -lsutil
 
 # nvcc flags (ptxas option verbose is always useful)
 # add the PTX flags to compile optix files

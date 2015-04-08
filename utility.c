@@ -24,6 +24,18 @@
 
 //}
 
+void sutilReportError(const char* message)
+{
+  fprintf( stderr, "OptiX Error: %s\n", message );
+#if defined(_WIN32) && defined(RELEASE_PUBLIC)
+  {
+    char s[2048];
+    sprintf( s, "OptiX Error: %s", message );
+    MessageBox( 0, s, "OptiX Error", MB_OK|MB_ICONWARNING|MB_SYSTEMMODAL );
+  }
+#endif
+}
+
 #if defined(_WIN32)
 
 // inv_freq is 1 over the number of ticks per second.
@@ -54,7 +66,7 @@ RTresult sutilCurrentTime( double* current_time )
 
 #else
 
-RTresult CurrentTime( double* current_time )
+RTresult sutilCurrentTime( double* current_time )
 {
   struct timeval tv;
   if( gettimeofday( &tv, 0 ) ) {

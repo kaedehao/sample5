@@ -15,7 +15,7 @@ class PinholeCamera;
 
 //-----------------------------------------------------------------------------
 //
-// OpenGL isplay
+// OpenGL display
 //
 //-----------------------------------------------------------------------------
 class glWidget : public QGLWidget
@@ -42,17 +42,20 @@ protected:
 
 private:
     // Do the actual rendering to the display
-    void displayFrame();
+    static void displayFrame();
 
-    void display();
-    //void run();
+    static void display();
 
-    Sample1* sample1Scene;
-    Sample2* sample2Scene;
+    // Cleans up the rendering context and quits.  If there wasn't error cleaning up, the
+    // return code is passed out, otherwise 2 is used as the return code.
+    static void quit(int return_code=0);
 
 private:
     GLfloat posx;
     GLfloat posy;
+    Sample1* sample1Scene;
+    Sample2* sample2Scene;
+
     // Draw text to screen at window pos x,y.  To make this public we will need to have
     // a public helper that caches the text for use in the display func
     static void drawText( const std::string& text, float x, float y, void* font );

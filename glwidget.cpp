@@ -59,6 +59,7 @@ bool           glWidget::m_enable_cpu_rendering = false;
 glWidget::glWidget(QWidget *parent) :
     QGLWidget(parent)
 {
+    setMouseTracking(true);
 }
 
 glWidget::~glWidget()
@@ -95,7 +96,9 @@ void glWidget::initializeGL()
 //      sample2Scene->trace();
 
     m_scene = new Sample5();
-    m_scene->setSize(1024u, 768u);
+    m_scene->setSize( 1024u, 768u );
+    m_scene->enableCPURendering( m_enable_cpu_rendering );
+    m_scene->setNumDevices( m_num_devices );
 
 //    glEnable(GL_CULL_FACE);
 //    glShadeModel(GL_SMOOTH);
@@ -134,7 +137,7 @@ void glWidget::keyPressEvent(QKeyEvent* event)
 
         break;
     case Qt::Key_Right:
-        posx+=10;
+        std::cout<<"key pressed"<<std::endl;
         updateGL();
         break;
 
@@ -157,9 +160,15 @@ void glWidget::keyPressEvent(QKeyEvent* event)
 void glWidget::mousePressEvent ( QMouseEvent * event)
 {
     if(event->button() == Qt::LeftButton){
-        std::cout<<"mouse pressed"<<std::endl;
+        m_print_mem_usage = !m_print_mem_usage;
+        m_display_fps = !m_display_fps;
+        updateGL();
     }
 
+    if(event->button() == Qt::RightButton){
+        m_camera->eye.x -= 10.0f;
+        updateGL();
+    }
 }
 
 void glWidget::mouseMoveEvent ( QMouseEvent * event)
@@ -180,8 +189,7 @@ void glWidget::paintGL()
 {
     //glutSetWindowTitle(window_title);
     //glutReshapeWindow(width, height);
-    m_scene->enableCPURendering(m_enable_cpu_rendering);
-    m_scene->setNumDevices( m_num_devices );
+
 
     int buffer_width;
     int buffer_height;
@@ -211,8 +219,8 @@ void glWidget::paintGL()
       buffer_height = static_cast<int>(buffer_height_rts);
       //m_mouse = new Mouse( m_camera, buffer_width, buffer_height );
     } catch( Exception& e ){
-      //sutilReportError( e.getErrorString().c_str() );
-        std::cout<<"Error Expection Caught # 1"<<std::endl;
+      sutilReportError( e.getErrorString().c_str() );
+      std::cout<<"Error Expection Caught # 1"<<std::endl;
       exit(2);
     }
 
@@ -225,12 +233,13 @@ void glWidget::paintGL()
     glOrtho(0, 1, 0, 1, -1, 1 );
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    gluLookAt(posx,posy,1.0,posx,posy,0.0,0.0,-1.0,0.0);
+
 
     glViewport(0, 0, buffer_width, buffer_height);
 
 
     display();
+    //gluLookAt(posx,posy,1.0,posx,posy,0.0,0.0,-1.0,0.0);
 }
 
 void glWidget::display()
@@ -263,7 +272,7 @@ void glWidget::display()
         displayFrame();
       }
     } catch( Exception& e ){
-      //sutilReportError( e.getErrorString().c_str() );
+      sutilReportError( e.getErrorString().c_str() );
       std::cout<<"Error Expection Caught #2"<<std::endl;
       exit(2);
     }
@@ -273,7 +282,7 @@ void glWidget::display()
     if ( m_display_fps && m_cur_continuous_mode != CDNone && m_frame_count > 1 ) {
       // Output fps
       double current_time;
-      CurrentTime( &current_time );
+      sutilCurrentTime( &current_time );
       double dt = current_time - m_last_frame_time;
       if( dt > m_fps_update_threshold ) {
         sprintf( m_fps_text, "fps: %7.2f", (m_frame_count - m_last_frame_count) / dt );
@@ -324,10 +333,10 @@ void glWidget::displayFrame()
     }
 
     unsigned int vboId = 0;
-    //if( m_scene->usesVBOBuffer() ){
-      //vboId = buffer->getGLBOId();
-      std::cout<<"here"<<std::endl;
-    //}
+    if( m_scene->usesVBOBuffer() ){
+      vboId = buffer->getGLBOId();
+    }
+    std::cout<<"here"<<std::endl;
 
     if (vboId)
     {
@@ -470,4 +479,23 @@ void glWidget::drawText( const std::string& text, float x, float y, void* font )
 
   // Restore state
   glPopAttrib();
+}
+
+void glWidget::quit(int return_code)
+{
+  try {
+    if(m_scene)
+    {
+      m_scene->cleanUp();
+      if (m_scene->getContext().get() != 0)
+      {
+        sutilReportError( "Derived scene class failed to call SampleScene::cleanUp()" );
+        exit(2);
+      }
+    }
+    exit(return_code);
+  } catch( Exception& e ) {
+    sutilReportError( e.getErrorString().c_str() );
+    exit(2);
+  }
 }
