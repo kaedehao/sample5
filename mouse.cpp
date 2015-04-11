@@ -272,7 +272,6 @@ Mouse::Mouse(PinholeCamera* camera, int xres, int yres)
 
 void Mouse::handleMouseFunc(int button, int state, int x, int y, int modifier)
 {
-  state = GLUT_DOWN;
   switch(state) {
   case GLUT_DOWN:
     current_interaction = InteractionState(modifier, button, state);
@@ -302,21 +301,20 @@ void Mouse::handleResize(int new_xres, int new_yres)
 
 void Mouse::call_func(int x, int y)
 {
-//  int modifier = current_interaction.modifier;
-//  int button   = current_interaction.button;
-//  if (modifier == 0                 && button == GLUT_LEFT_BUTTON)
+  int modifier = current_interaction.modifier;
+  int button   = current_interaction.button;
+  if (modifier == 0                 && button == Qt::LeftButton)
     rotate(x, y);
-//  if (modifier == 0                 && button == GLUT_MIDDLE_BUTTON)
-//    translate(x, y);
-//  if (modifier == GLUT_ACTIVE_SHIFT && button == GLUT_RIGHT_BUTTON)
-//    fov(x, y);
-//  if (modifier == 0                 && button == GLUT_RIGHT_BUTTON)
-//    dolly(x, y);
+  if (modifier == 0                 && button == Qt::MiddleButton)
+    translate(x, y);
+  if (modifier == GLUT_ACTIVE_SHIFT && button == Qt::RightButton)
+    fov(x, y);
+  if (modifier == 0                 && button == Qt::RightButton)
+    dolly(x, y);
 }
 
 void Mouse::rotate(int x, int y)
 {
-
   float xpos = 2.0f*static_cast<float>(x)/static_cast<float>(xres) - 1.0f;
   float ypos = 1.0f - 2.0f*static_cast<float>(y)/static_cast<float>(yres);
 
@@ -336,6 +334,79 @@ void Mouse::rotate(int x, int y)
   current_interaction.last_x = x;
   current_interaction.last_y = y;
 
+}
+
+void Mouse::translate(int x, int y)
+{
+  if(current_interaction.state == GLUT_MOTION) {
+    float xmotion =  float(current_interaction.last_x - x)/xres;
+    float ymotion = -float(current_interaction.last_y - y)/yres;
+    float2 translation = make_float2(xmotion, ymotion) * translate_speed;
+
+    camera->translate(translation);
+  }
+  current_interaction.last_x = x;
+  current_interaction.last_y = y;
+}
+
+void Mouse::fov(int x, int y)
+{
+  if(current_interaction.state == GLUT_MOTION) {
+    float xmotion = (current_interaction.last_x - x)/static_cast<float>(xres);
+    float ymotion = (current_interaction.last_y - y)/static_cast<float>(yres);
+    float scale;
+    if(fabsf(xmotion) > fabsf(ymotion))
+      scale = xmotion;
+    else
+      scale = ymotion;
+    scale *= fov_speed;
+
+    if (scale < 0.0f)
+      scale = 1.0f/(1.0f-scale);
+    else
+      scale += 1.0f;
+
+    // Manipulate Camera
+    camera->scaleFOV(scale);
+  }
+  current_interaction.last_x = x;
+  current_interaction.last_y = y;
+}
+
+void Mouse::dolly(int x, int y)
+{
+  if(current_interaction.state == GLUT_MOTION) {
+    float xmotion = -float(current_interaction.last_x - x)/xres;
+    float ymotion = -float(current_interaction.last_y - y)/yres;
+
+    float scale;
+    if(fabsf(xmotion) > fabsf(ymotion))
+      scale = xmotion;
+    else
+      scale = ymotion;
+    scale *= dolly_speed;
+
+    camera->dolly(scale);
+  }
+  current_interaction.last_x = x;
+  current_interaction.last_y = y;
+}
+
+void Mouse::track_and_pan(int x, int y)
+{
+}
+
+void Mouse::track(int x, int y)
+{
+}
+
+void Mouse::pan(int x, int y)
+{
+}
+
+void Mouse::transform( const optix::Matrix4x4& trans )
+{
+  camera->transform(trans);
 }
 
 //-----------------------------------------------------------------------------
@@ -377,7 +448,6 @@ void PinholeCamera::setAspectRatio(float ratio)
   }
 
   *outputAngle = RtoD(2.0f*atanf(realRatio*tanf(DtoR(0.5f*(*inputAngle)))));
-
   setup();
 }
 
@@ -404,7 +474,6 @@ void PinholeCamera::setup()
   camera_u = assignWithCheck( camera_u, camera_u * ulen );
   float vlen = lookdir_len * tanf(DtoR(vfov*0.5f));
   camera_v = assignWithCheck( camera_v, camera_v * vlen );
-  std::cout<<"camera_u: "<<camera_u.x<<std::endl;
 }
 
 void PinholeCamera::getEyeUVW(float3& eye_out, float3& U, float3& V, float3& W)

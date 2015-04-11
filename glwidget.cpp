@@ -40,7 +40,7 @@ char           glWidget::m_fps_text[32];
 
 float3         glWidget::m_text_color           = make_float3( 0.95f );
 float3         glWidget::m_text_shadow_color    = make_float3( 0.10f );
-bool           glWidget::m_print_mem_usage      = false;
+bool           glWidget::m_print_mem_usage      = true;
 
 glWidget::contDraw_E glWidget::m_cur_continuous_mode = CDNone;
 
@@ -124,7 +124,7 @@ void glWidget::initializeGL()
         //camera_data = Sample5::InitialCameraData( m_camera_pose );
 
       // Initialize camera according to scene params
-    m_camera = new PinholeCamera( camera_data.eye,
+      m_camera = new PinholeCamera( camera_data.eye,
                                     camera_data.lookat,
                                     camera_data.up,
                                     -1.0f, // hfov is ignored when using keep vertical
@@ -149,7 +149,6 @@ void glWidget::initializeGL()
     glOrtho(0, 1, 0, 1, -1, 1 );
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-
 
     glViewport(0, 0, buffer_width, buffer_height);
 }
@@ -215,13 +214,15 @@ void glWidget::keyPressEvent(QKeyEvent* event)
     }
 }
 
-float pos = 10;
 void glWidget::mousePressEvent ( QMouseEvent * event )
 {
-    if(event->button() == Qt::LeftButton){
-        //m_camera->eye.x -= 1.0f;
-        updateGL();
-    }
+    //sutilCurrentTime( &m_start_time );
+    int state = 0; // GLUT_DOWN
+    m_mouse->handleMouseFunc( event->button(), state, event->x(), event->y(), event->modifiers() );
+    //if ( event->button() == Qt::NoButton )
+    m_scene->signalCameraChanged();
+    updateGL();
+
 
     if(event->button() == Qt::RightButton){
         m_print_mem_usage = !m_print_mem_usage;
@@ -230,10 +231,17 @@ void glWidget::mousePressEvent ( QMouseEvent * event )
     }
 }
 
+void glWidget::mouseReleaseEvent(QMouseEvent *event)
+{
+    //sutilCurrentTime( &m_start_time );
+    int state = 1; // GLUT_UP
+    m_mouse->handleMouseFunc( event->button(), state, event->x(), event->y(), event->modifiers() );
+    updateGL();
+}
+
 void glWidget::mouseMoveEvent ( QMouseEvent * event )
 {
-    if(event->buttons() == Qt::LeftButton){
-        std::cout<<event->x()<<", "<<event->y()<<std::endl;
+    if(event->buttons() != Qt::NoButton){
         m_mouse->handleMoveFunc( event->x(), event->y() );
         m_scene->signalCameraChanged();
         updateGL();
@@ -250,7 +258,6 @@ void glWidget::paintGL()
 {
     //glutSetWindowTitle(window_title);
     //glutReshapeWindow(width, height);
-
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     display();
@@ -292,6 +299,7 @@ void glWidget::display()
       exit(2);
     }
 
+    setCurContinuousMode(CDProgressive);
     // Do not draw text on 1st frame -- issue on linux causes problems with
     // glDrawPixels call if drawText glutBitmapCharacter is called on first frame.
     if ( m_display_fps && m_cur_continuous_mode != CDNone && m_frame_count > 1 ) {
@@ -492,6 +500,15 @@ void glWidget::drawText( const std::string& text, float x, float y, void* font )
 
   // Restore state
   glPopAttrib();
+}
+
+// This is an internal function that does the actual work.
+void glWidget::setCurContinuousMode(contDraw_E continuous_mode)
+{
+  m_cur_continuous_mode = continuous_mode;
+
+  //sutilCurrentTime( &m_start_time );
+  //glutIdleFunc( m_cur_continuous_mode!=CDNone ? idle : 0 );
 }
 
 void glWidget::quit(int return_code)

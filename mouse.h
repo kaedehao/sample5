@@ -4,6 +4,7 @@
 #define MOUSE_H
 
 #include <optixu/optixu_matrix_namespace.h>
+#include <QKeyEvent>
 
 class PinholeCamera;
 
@@ -38,14 +39,14 @@ private:
 
   void call_func(int x, int y);
 
-//  void fov(int x, int y);
-//  void translate(int x, int y);
-//  void dolly(int x, int y);
+  void fov(int x, int y);
+  void translate(int x, int y);
+  void dolly(int x, int y);
   void rotate(int x, int y);
-//  void track_and_pan(int x, int y);
-//  void track(int x, int y);
-//  void pan(int x, int y);
-//  void transform( const optix::Matrix4x4& trans );
+  void track_and_pan(int x, int y);
+  void track(int x, int y);
+  void pan(int x, int y);
+  void transform( const optix::Matrix4x4& trans );
 
   // Data
   PinholeCamera* camera;

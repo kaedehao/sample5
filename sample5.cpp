@@ -107,7 +107,7 @@ void Sample5Scene::initScene( InitialCameraData& camera_data )
     m_context->setMissProgram( 0, miss_program );
 
     m_context["bad_color"]->setFloat( 1.0f, 0.0f, 0.0f);
-    m_context["bg_color"]->setFloat( make_float3( 0.1f, 0.8f, 1.0f ) );
+    m_context["bg_color"]->setFloat( make_float3( 0.3f, 0.5f, 0.5f ) );
 
     // Lights
     BasicLight lights[] = {
@@ -395,7 +395,7 @@ void Sample5Scene::createGeometry()
     geometrygroup->setChildCount( 1 );
     geometrygroup->setChild( 0 , instance );
     geometrygroup->setAcceleration( m_context->createAcceleration( "NoAccel",  "NoAccel" ) );
-    //top_level_group->addChild( geometrygroup );
+    top_level_group->addChild( geometrygroup );
 
 
     top_level_group->setAcceleration( m_context->createAcceleration( "Trbvh", "Bvh" ) );
@@ -420,6 +420,29 @@ void Sample5Scene::trace( const RayGenCameraData& camera_data )
         m_frame_number = 0u;
         m_camera_changed = false;
     }
+//    std::cout<<"eye: "
+//            <<camera_data.eye.x<<", "
+//            <<camera_data.eye.y<<", "
+//            <<camera_data.eye.z<<", "
+//            <<std::endl;
+
+//    std::cout<<"U: "
+//            <<camera_data.U.x<<", "
+//            <<camera_data.U.y<<", "
+//            <<camera_data.U.z<<", "
+//            <<std::endl;
+
+//    std::cout<<"V: "
+//            <<camera_data.V.x<<", "
+//            <<camera_data.V.y<<", "
+//            <<camera_data.V.z<<", "
+//            <<std::endl;
+
+//    std::cout<<"W: "
+//            <<camera_data.W.x<<", "
+//            <<camera_data.W.y<<", "
+//            <<camera_data.W.z<<", "
+//            <<std::endl;
 
     //launch it
     m_context["eye"]->setFloat( camera_data.eye );

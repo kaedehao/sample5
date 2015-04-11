@@ -36,6 +36,7 @@ protected:
     void keyPressEvent( QKeyEvent* event);
     void mouseMoveEvent(QMouseEvent *event);
     void mousePressEvent(QMouseEvent *event);
+    void mouseReleaseEvent(QMouseEvent *event);
 
     void timerEvent(QTimerEvent* _event);
 
@@ -46,6 +47,9 @@ private:
     static void displayFrame();
 
     static void display();
+
+    // Set the current continuous drawing mode, while preserving the app's choice.
+    static void setCurContinuousMode(contDraw_E continuous_mode);
 
     // Cleans up the rendering context and quits.  If there wasn't error cleaning up, the
     // return code is passed out, otherwise 2 is used as the return code.
