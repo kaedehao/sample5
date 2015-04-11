@@ -26,8 +26,9 @@
 using namespace optix;
 
 //----------------------------------------------------------------------------------------------------------------------
+Mouse*         glWidget::m_mouse                = 0;
 PinholeCamera* glWidget::m_camera               = 0;
-Sample5*       glWidget::m_scene                = 0;
+Sample5Scene*  glWidget::m_scene                = 0;
 
 double         glWidget::m_last_frame_time      = 0.0;
 unsigned int   glWidget::m_last_frame_count     = 0;
@@ -95,8 +96,7 @@ void glWidget::initializeGL()
 //      sample2Scene->init();
 //      sample2Scene->trace();
 
-    m_scene = new Sample5();
-    m_scene->setSize( 1024u, 768u );
+    m_scene = new Sample5Scene();
     m_scene->enableCPURendering( m_enable_cpu_rendering );
     m_scene->setNumDevices( m_num_devices );
 
@@ -114,7 +114,7 @@ void glWidget::initializeGL()
     int buffer_height;
     try {
       // Set up scene
-      Sample5::InitialCameraData camera_data;
+      Sample5Scene::InitialCameraData camera_data;
       m_scene->initScene( camera_data );
 
       //if( m_initial_window_width > 0 && m_initial_window_height > 0)
@@ -124,7 +124,7 @@ void glWidget::initializeGL()
         //camera_data = Sample5::InitialCameraData( m_camera_pose );
 
       // Initialize camera according to scene params
-      m_camera = new PinholeCamera( camera_data.eye,
+    m_camera = new PinholeCamera( camera_data.eye,
                                     camera_data.lookat,
                                     camera_data.up,
                                     -1.0f, // hfov is ignored when using keep vertical
@@ -136,7 +136,7 @@ void glWidget::initializeGL()
       buffer->getSize( buffer_width_rts, buffer_height_rts );
       buffer_width  = static_cast<int>(buffer_width_rts);
       buffer_height = static_cast<int>(buffer_height_rts);
-      //m_mouse = new Mouse( m_camera, buffer_width, buffer_height );
+      m_mouse = new Mouse( m_camera, buffer_width, buffer_height );
     } catch( Exception& e ){
       sutilReportError( e.getErrorString().c_str() );
       std::cout<<"Error Expection Caught # 1"<<std::endl;
@@ -156,15 +156,30 @@ void glWidget::initializeGL()
 
 void glWidget::resizeGL(int width, int height)
 {
-//    int side = qMin(width, height);
-    glViewport( 0, 0, width, height );
+    // disallow size 0
+    width  = max(1, width);
+    height = max(1, height);
 
-//#ifdef QT_OPENGL_ES_1
-//    glOrthof(-2, +2, -2, +2, 1.0, 15.0);
-//#else
-//    glOrtho(-2, +2, -2, +2, 1.0, 15.0);
-//#endif
-//    glMatrixMode(GL_MODELVIEW);
+    //sutilCurrentTime( &m_start_time );
+    m_scene->signalCameraChanged();
+    m_mouse->handleResize( width, height );
+
+    try {
+      m_scene->resize(width, height);
+    } catch( Exception& e ){
+      sutilReportError( e.getErrorString().c_str() );
+      exit(2);
+    }
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, 1, 0, 1, -1, 1);
+    glViewport(0, 0, width, height);
+//    if (m_app_continuous_mode == CDProgressive) {
+//      setCurContinuousMode(CDProgressive);
+//    }
+    //glutPostRedisplay();
+    updateGL();
 }
 
 void glWidget::keyPressEvent(QKeyEvent* event)
@@ -200,11 +215,11 @@ void glWidget::keyPressEvent(QKeyEvent* event)
     }
 }
 
-float color = 0;
-void glWidget::mousePressEvent ( QMouseEvent * event)
+float pos = 10;
+void glWidget::mousePressEvent ( QMouseEvent * event )
 {
     if(event->button() == Qt::LeftButton){
-        //m_camera->eye.x -= 10.0f;
+        //m_camera->eye.x -= 1.0f;
         updateGL();
     }
 
@@ -215,12 +230,14 @@ void glWidget::mousePressEvent ( QMouseEvent * event)
     }
 }
 
-void glWidget::mouseMoveEvent ( QMouseEvent * event)
+void glWidget::mouseMoveEvent ( QMouseEvent * event )
 {
     if(event->buttons() == Qt::LeftButton){
         std::cout<<event->x()<<", "<<event->y()<<std::endl;
+        m_mouse->handleMoveFunc( event->x(), event->y() );
+        m_scene->signalCameraChanged();
+        updateGL();
     }
-
 }
 
 void glWidget::timerEvent(QTimerEvent *_event)
@@ -251,7 +268,7 @@ void glWidget::display()
       // Don't be tempted to just start filling in the values outside of a constructor,
       // because if you add a parameter it's easy to forget to add it here.
 
-      Sample5::RayGenCameraData camera_data( eye, U, V, W );
+      Sample5Scene::RayGenCameraData camera_data( eye, U, V, W );
 
       {
         nvtx::ScopedRange r( "trace" );
@@ -304,8 +321,6 @@ void glWidget::display()
 
 void glWidget::displayFrame()
 {
-    //m_scene->setUseVBOBuffer(true);
-    // Draw the resulting image
     GLboolean sRGB = GL_FALSE;
     if (m_use_sRGB && m_sRGB_supported) {
       glGetBooleanv( GL_FRAMEBUFFER_SRGB_CAPABLE_EXT, &sRGB );
@@ -332,9 +347,9 @@ void glWidget::displayFrame()
 
     unsigned int vboId = 0;
     if( m_scene->usesVBOBuffer() ){
-      vboId = buffer->getGLBOId();
+        vboId = buffer->getGLBOId();
+        std::cout<<"here: "<<buffer->getGLBOId()<<std::endl;
     }
-    //std::cout<<"here"<<std::endl;
 
     if (vboId)
     {
@@ -487,7 +502,7 @@ void glWidget::quit(int return_code)
       m_scene->cleanUp();
       if (m_scene->getContext().get() != 0)
       {
-        sutilReportError( "Derived scene class failed to call SampleScene::cleanUp()" );
+        sutilReportError( "Derived scene class failed to call Sample5::cleanUp()" );
         exit(2);
       }
     }

@@ -25,32 +25,60 @@
 
 using namespace optix;
 //----------------------------------------------------------------------------------------------------------------------
-Sample5::Sample5()
+Sample5Scene::Sample5Scene()
+    : m_camera_changed( true ), m_use_vbo_buffer( false ), m_num_devices( 0 ), m_cpu_rendering_enabled( false ), m_frame_number( 0 ), m_width( 1024u ), m_height( 768u )
 {
     m_context = optix::Context::create();
 }
 //----------------------------------------------------------------------------------------------------------------------
-Sample5::~Sample5(){
+Sample5Scene::~Sample5Scene(){
     // clean up
     m_outputBuffer->destroy();
     m_context->destroy();
     m_context = 0;
 }
 
-void Sample5::cleanUp()
-{
-  m_context->destroy();
-  m_context = 0;
-}
 
-const char* const Sample5::ptxpath( const std::string& target, const std::string& base )
+const char* const Sample5Scene::ptxpath( const std::string& target, const std::string& base )
 {
     static std::string path;
     path = "ptx/" + target + "_generated_" + base + ".ptx";
     return path.c_str();
 }
 
-void Sample5::initScene( InitialCameraData& camera_data )
+void Sample5Scene::cleanUp()
+{
+  m_context->destroy();
+  m_context = 0;
+}
+
+
+void Sample5Scene::resize(unsigned int width, unsigned int height)
+{
+  try {
+    Buffer buffer = getOutputBuffer();
+    buffer->setSize( width, height );
+
+    if(m_use_vbo_buffer)
+    {
+      buffer->unregisterGLBuffer();
+      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, buffer->getGLBOId());
+      glBufferData(GL_PIXEL_UNPACK_BUFFER, buffer->getElementSize() * width * height, 0, GL_STREAM_DRAW);
+      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+      buffer->registerGLBuffer();
+    }
+
+  } catch( Exception& e ){
+    sutilReportError( e.getErrorString().c_str() );
+    exit(2);
+  }
+
+  // Let the user resize any other buffers
+  //doResize( width, height );
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+void Sample5Scene::initScene( InitialCameraData& camera_data )
 {
     // context
     m_context->setRayTypeCount(2);
@@ -64,7 +92,7 @@ void Sample5::initScene( InitialCameraData& camera_data )
     m_context["scene_epsilon"]->setFloat( 1.e-4f );
 
     // Render result bufffer
-    m_context["output_buffer"]->set( createOutputBuffer(RT_FORMAT_FLOAT4, m_width, m_height) );
+    m_context["output_buffer"]->set( createOutputBuffer(RT_FORMAT_UNSIGNED_BYTE4, m_width, m_height) );
     m_outputBuffer = m_context["output_buffer"]->getBuffer();
 
     // Pinhole Camera ray gen and exception program
@@ -106,12 +134,6 @@ void Sample5::initScene( InitialCameraData& camera_data )
     m_context["V"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
     m_context["W"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
 
-    // Create buffers
-//    Buffer output_buffer = m_context->createBuffer(RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL,
-//                                                   RT_FORMAT_FLOAT4,
-//                                                   m_width, m_height );
-//    memset( output_buffer->map(), 0, m_width*m_height*sizeof(float4) );
-
     // Populate scene hierarchy
     createGeometry();
 
@@ -121,12 +143,12 @@ void Sample5::initScene( InitialCameraData& camera_data )
 
 }
 //----------------------------------------------------------------------------------------------------------------------
-Buffer Sample5::getOutputBuffer()
+Buffer Sample5Scene::getOutputBuffer()
 {
     return m_context["output_buffer"]->getBuffer();
 }
 
-Buffer Sample5::createOutputBuffer( RTformat format,
+Buffer Sample5Scene::createOutputBuffer( RTformat format,
                                         unsigned int width,
                                         unsigned int height )
 {
@@ -168,7 +190,7 @@ Buffer Sample5::createOutputBuffer( RTformat format,
 }
 
 void
-Sample5::setNumDevices( int ndev )
+Sample5Scene::setNumDevices( int ndev )
 {
   m_num_devices = ndev;
 
@@ -178,7 +200,7 @@ Sample5::setNumDevices( int ndev )
 }
 
 void
-Sample5::enableCPURendering(bool enable)
+Sample5Scene::enableCPURendering(bool enable)
 {
   // Is CPU mode already enabled
   std::vector<int> devices = m_context->getEnabledDevices();
@@ -223,14 +245,14 @@ Sample5::enableCPURendering(bool enable)
 }
 
 void
-Sample5::updateCPUMode()
+Sample5Scene::updateCPUMode()
 {
   m_cpu_rendering_enabled = m_context->getDeviceName(m_context->getEnabledDevices()[0]) == "CPU";
   if (m_cpu_rendering_enabled)
     m_use_vbo_buffer = false;
 }
 //----------------------------------------------------------------------------------------------------------------------
-void Sample5::createGeometry()
+void Sample5Scene::createGeometry()
 {
     // Sphere geometry
     std::string sphere_ptx( ptxpath( "sample5", "sphere.cu") );
@@ -387,24 +409,25 @@ void Sample5::createGeometry()
 
 //----------------------------------------------------------------------------------------------------------------------
 void
-Sample5::trace( const RayGenCameraData& camera_data, bool& display )
+Sample5Scene::trace( const RayGenCameraData& camera_data, bool& display )
 {
   trace(camera_data);
 }
 
-void Sample5::trace( const RayGenCameraData& camera_data )
+void Sample5Scene::trace( const RayGenCameraData& camera_data )
 {
+    if ( m_camera_changed ) {
+        m_frame_number = 0u;
+        m_camera_changed = false;
+    }
+
     //launch it
     m_context["eye"]->setFloat( camera_data.eye );
     m_context["U"]->setFloat( camera_data.U );
+    //m_context["U"]->setFloat( make_float3( 3.849f, 0.0f, 0.0f ) );
     m_context["V"]->setFloat( camera_data.V );
     m_context["W"]->setFloat( camera_data.W );
     m_context["frame_number"]->setUint( m_frame_number++ );
-
-    m_context["eye"]->setFloat( make_float3( 0.0f, 0.0f, 5.0f ) );
-    m_context["U"]->setFloat( make_float3( 1.0f, 0.0f, 0.0f ) );
-    m_context["V"]->setFloat( make_float3( 0.0f, 1.0f, 0.0f ) );
-    m_context["W"]->setFloat( make_float3( 0.0f, 0.0f, -1.0f ) );
 
     Buffer buffer = m_context["output_buffer"]->getBuffer();
     RTsize buffer_width, buffer_height;
@@ -459,7 +482,7 @@ void Sample5::trace( const RayGenCameraData& camera_data )
 }
 
 //----------------------------------------------------------------------------------------------------------------------
-void Sample5::updateGeometry( float radius)//, float center )
+void Sample5Scene::updateGeometry( float radius)//, float center )
 {
     Group            top_level_group = m_context["top_object"]-> getGroup();
     Transform        transform       = top_level_group->getChild<Transform>( 0 );
@@ -484,7 +507,7 @@ void Sample5::updateGeometry( float radius)//, float center )
     top_level_group->getAcceleration()->markDirty();
 }
 
-void Sample5::updateMaterial( float refraction_index )
+void Sample5Scene::updateMaterial( float refraction_index )
 {
     Group            top_level_group = m_context["top_object"]-> getGroup();
     Transform        transform       = top_level_group->getChild<Transform>( 0 );

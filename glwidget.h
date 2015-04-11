@@ -26,7 +26,7 @@ public:
     explicit glWidget(QWidget* _parent = 0);
     ~glWidget();
 
-    static Sample5* getScene(){ return m_scene; }
+    static Sample5Scene* getScene(){ return m_scene; }
 
 protected:
     void resizeGL(int width, int height);
@@ -61,8 +61,9 @@ private:
     // a public helper that caches the text for use in the display func
     static void drawText( const std::string& text, float x, float y, void* font );
 
+    static Mouse*         m_mouse;
     static PinholeCamera* m_camera;
-    static Sample5*       m_scene;
+    static Sample5Scene*  m_scene;
 
     static double         m_last_frame_time;
     static unsigned int   m_last_frame_count;

@@ -37,7 +37,7 @@ rtDeclareVariable(float3,        V, , );
 rtDeclareVariable(float3,        W, , );
 rtDeclareVariable(float3,        bad_color, , );
 rtDeclareVariable(float,         scene_epsilon, , );
-rtBuffer<uchar4, 2>              output_buffer;
+rtBuffer<float4, 2>              output_buffer;
 rtDeclareVariable(rtObject,      top_object, , );
 rtDeclareVariable(unsigned int,  radiance_ray_type, , );
 
@@ -69,9 +69,9 @@ RT_PROGRAM void pinhole_camera()
  
   float expected_fps   = 1.0f;
   float pixel_time     = ( t1 - t0 ) * time_view_scale * expected_fps;
-  output_buffer[launch_index] = make_color( make_float3(  pixel_time ) ); 
+  output_buffer[launch_index] = make_float4(  make_float3(  pixel_time ), 1.0) ;
 #else
-  output_buffer[launch_index] = make_color( prd.result );
+  output_buffer[launch_index] = make_float4( prd.result, 1.0 );
 #endif
 }
 
@@ -79,5 +79,5 @@ RT_PROGRAM void exception()
 {
   const unsigned int code = rtGetExceptionCode();
   rtPrintf( "Caught exception 0x%X at launch index (%d,%d)\n", code, launch_index.x, launch_index.y );
-  output_buffer[launch_index] = make_color( bad_color );
+  output_buffer[launch_index] = make_float4( bad_color,1.0 );
 }

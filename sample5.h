@@ -10,11 +10,12 @@
 #define SMAPLE5_H
 
 #include <optixu/optixpp_namespace.h>
+#include "utility.h"
 #include <QImage>
 
 #endif // SMAPLE5_H
 
-class Sample5
+class Sample5Scene
 {
 protected:
     typedef optix::float3 float3;
@@ -49,20 +50,21 @@ public:
       float  vfov;
     };
 
+    Sample5Scene();
+    ~Sample5Scene();
 
-    Sample5();
-    ~Sample5();
-
-    //From SampleScene
-    void initScene( InitialCameraData &camera_data );
-    void trace( const RayGenCameraData& camera_data, bool& display );
-    void trace( const RayGenCameraData &camera_data );
+    void  signalCameraChanged() { m_camera_changed = true; }
 
     void  setNumDevices( int ndev );
     void  enableCPURendering(bool enable);
 
     void  setUseVBOBuffer( bool onoff ) { m_use_vbo_buffer = onoff; }
     bool  usesVBOBuffer() { return m_use_vbo_buffer; }
+
+    //From SampleScene
+    void initScene( InitialCameraData &camera_data );
+    void trace( const RayGenCameraData &camera_data );
+    void trace( const RayGenCameraData& camera_data, bool& display );
 
     // Return the output buffer to be displayed
     optix::Buffer getOutputBuffer();
@@ -71,6 +73,9 @@ public:
     // SampleScene::cleanUp() explicitly.
     void cleanUp();
 
+    // Will resize the output buffer (which might use a VBO) then call doResize.
+    // Override this if you want to handle ALL buffer resizes yourself.
+    void   resize(unsigned int width, unsigned int height);
 
     // Accessor
     optix::Context& getContext() { return m_context; }
@@ -78,11 +83,6 @@ public:
     // Scene API
     void updateMaterial( float refraction_index );
     void updateGeometry( float radius );
-
-    // a mutator to set the width and height of our scene
-    inline void setSize(unsigned int _width, unsigned int _height){m_width = _width; m_height = _height;}
-
-
 
 private:
     int getEntryPoint() { return m_adaptive_aa ? AdaptivePinhole: Pinhole; }
@@ -108,6 +108,7 @@ protected:
 
     optix::Context m_context;
 
+    bool   m_camera_changed;
     bool   m_use_vbo_buffer;
     int    m_num_devices;
     bool   m_cpu_rendering_enabled;

@@ -1,16 +1,59 @@
+#pragma once
+
 #ifndef MOUSE_H
 #define MOUSE_H
-
 
 #include <optixu/optixu_matrix_namespace.h>
 
 class PinholeCamera;
 
-class Mouse
-{
+
+//-----------------------------------------------------------------------------
+//
+// Mouse class -- handles user mouse events. This class defines the mouse
+//                interaction that is modeled off of Maya.
+//
+//-----------------------------------------------------------------------------
+
+class Mouse {
 public:
-    Mouse();
-    ~Mouse();
+  Mouse(PinholeCamera* camera, int xres, int yres);
+  void handleMouseFunc(int button, int state, int x, int y, int modifier);
+  void handleMoveFunc(int x, int y);
+  void handlePassiveMotionFunc(int x, int y);
+  void handleResize(int new_xres, int new_yres);
+
+private:
+  struct InteractionState {
+    InteractionState() {}
+    InteractionState(int modifier, int button, int state)
+      : modifier(modifier), button(button), state(state)
+    {}
+    int modifier; // Shift,Ctrl,Alt
+    int button;   // Left,Middle,Right
+    int state;    // Down,Up
+    int last_x, last_y;
+    optix::float3 rotate_from;
+  };
+
+  void call_func(int x, int y);
+
+//  void fov(int x, int y);
+//  void translate(int x, int y);
+//  void dolly(int x, int y);
+  void rotate(int x, int y);
+//  void track_and_pan(int x, int y);
+//  void track(int x, int y);
+//  void pan(int x, int y);
+//  void transform( const optix::Matrix4x4& trans );
+
+  // Data
+  PinholeCamera* camera;
+  InteractionState current_interaction;
+  int xres, yres;
+  float fov_speed;
+  float dolly_speed;
+  float translate_speed;
 };
 
 //-----------------------------------------------------------------------------

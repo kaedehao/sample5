@@ -10,17 +10,18 @@
 #   define ISFINITE std::isfinite
 # endif
 
-#ifdef GLUT_FOUND
+//#ifdef GLUT_FOUND
 #  if defined(__APPLE__)
 #    include <GLUT/glut.h>
 #  else
 #    include <GL/glut.h>
 #  endif
-#else
+//#else
 //#  error "You in big trouble without the GLUT."
-#endif
+//#endif
 
 #define GLUT_MOTION 2
+
 
 //-----------------------------------------------------------------------------
 //
@@ -258,16 +259,84 @@ namespace {
 // Mouse definition
 //
 //-----------------------------------------------------------------------------
-Mouse::Mouse()
-{
 
+Mouse::Mouse(PinholeCamera* camera, int xres, int yres)
+  : camera(camera)
+  , xres(xres)
+  , yres(yres)
+  , fov_speed(2)
+  , dolly_speed(5)
+  , translate_speed(2)
+{
 }
 
-Mouse::~Mouse()
+void Mouse::handleMouseFunc(int button, int state, int x, int y, int modifier)
 {
-
+  state = GLUT_DOWN;
+  switch(state) {
+  case GLUT_DOWN:
+    current_interaction = InteractionState(modifier, button, state);
+    call_func(x,y);
+    break;
+  case GLUT_UP:
+    break;
+  }
 }
 
+void Mouse::handleMoveFunc(int x, int y)
+{
+  current_interaction.state = GLUT_MOTION;
+  call_func(x,y);
+}
+
+void Mouse::handlePassiveMotionFunc(int x, int y)
+{
+}
+
+void Mouse::handleResize(int new_xres, int new_yres)
+{
+  xres = new_xres;
+  yres = new_yres;
+  camera->setAspectRatio(static_cast<float>(xres)/yres);
+}
+
+void Mouse::call_func(int x, int y)
+{
+//  int modifier = current_interaction.modifier;
+//  int button   = current_interaction.button;
+//  if (modifier == 0                 && button == GLUT_LEFT_BUTTON)
+    rotate(x, y);
+//  if (modifier == 0                 && button == GLUT_MIDDLE_BUTTON)
+//    translate(x, y);
+//  if (modifier == GLUT_ACTIVE_SHIFT && button == GLUT_RIGHT_BUTTON)
+//    fov(x, y);
+//  if (modifier == 0                 && button == GLUT_RIGHT_BUTTON)
+//    dolly(x, y);
+}
+
+void Mouse::rotate(int x, int y)
+{
+
+  float xpos = 2.0f*static_cast<float>(x)/static_cast<float>(xres) - 1.0f;
+  float ypos = 1.0f - 2.0f*static_cast<float>(y)/static_cast<float>(yres);
+
+  if ( current_interaction.state == GLUT_DOWN ) {
+
+    current_interaction.rotate_from = projectToSphere( xpos, ypos, 0.8f );
+
+  } else if(current_interaction.state == GLUT_MOTION) {
+
+    float3 to( projectToSphere( xpos, ypos, 0.8f ) );
+    float3 from( current_interaction.rotate_from );
+
+    Matrix4x4 m = rotationMatrix( to, from);
+    current_interaction.rotate_from = to;
+    camera->transform( m );
+  }
+  current_interaction.last_x = x;
+  current_interaction.last_y = y;
+
+}
 
 //-----------------------------------------------------------------------------
 //
@@ -335,6 +404,7 @@ void PinholeCamera::setup()
   camera_u = assignWithCheck( camera_u, camera_u * ulen );
   float vlen = lookdir_len * tanf(DtoR(vfov*0.5f));
   camera_v = assignWithCheck( camera_v, camera_v * vlen );
+  std::cout<<"camera_u: "<<camera_u.x<<std::endl;
 }
 
 void PinholeCamera::getEyeUVW(float3& eye_out, float3& U, float3& V, float3& W)
