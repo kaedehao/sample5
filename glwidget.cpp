@@ -20,7 +20,6 @@
 
 #include <NsightHelper.h>
 
-#include <QKeyEvent>
 #include <QMouseEvent>
 
 using namespace optix;
@@ -42,6 +41,7 @@ float3         glWidget::m_text_color           = make_float3( 0.95f );
 float3         glWidget::m_text_shadow_color    = make_float3( 0.10f );
 bool           glWidget::m_print_mem_usage      = true;
 
+glWidget::contDraw_E glWidget::m_app_continuous_mode = CDNone;
 glWidget::contDraw_E glWidget::m_cur_continuous_mode = CDNone;
 
 bool           glWidget::m_display_frames       = true;
@@ -51,6 +51,8 @@ std::string    glWidget::m_save_frames_basename = "";
 unsigned int   glWidget::m_texId                = 0;
 bool           glWidget::m_sRGB_supported       = false;
 bool           glWidget::m_use_sRGB             = false;
+
+double         glWidget::m_progressive_timeout  = -1.;
 
 int            glWidget::m_num_devices          = 0;
 
@@ -100,6 +102,11 @@ void glWidget::initializeGL()
     m_scene->enableCPURendering( m_enable_cpu_rendering );
     m_scene->setNumDevices( m_num_devices );
 
+    if( m_print_mem_usage ) {
+      DeviceMemoryLogger::logDeviceDescription(m_scene->getContext(), std::cerr);
+      DeviceMemoryLogger::logCurrentMemoryUsage(m_scene->getContext(), std::cerr, "Initial memory available: " );
+      std::cerr << std::endl;
+    }
 //    glEnable(GL_CULL_FACE);
 //    glShadeModel(GL_SMOOTH);
 //    glEnable(GL_LIGHTING);
@@ -108,7 +115,9 @@ void glWidget::initializeGL()
 //    static GLfloat lightPosition[4] = { 0, 0, 10, 1.0 };
 //    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
 
-      //startTimer(0);
+    // If m_app_continuous_mode was already set to CDBenchmark* on the command line then preserve it.
+    contDraw_E continuous_mode = m_scene->adaptive_aa() ? glWidget::CDProgressive : glWidget::CDNone;
+    setContinuousMode( m_app_continuous_mode == CDNone ? continuous_mode : m_app_continuous_mode );
 
     int buffer_width;
     int buffer_height;
@@ -181,54 +190,13 @@ void glWidget::resizeGL(int width, int height)
     updateGL();
 }
 
-void glWidget::keyPressEvent(QKeyEvent* event)
-{
-    switch(event->key()) {
-    case Qt::Key_Escape:
-        std::cout<<"key pressed"<<std::endl;
-        close();
-        break;
-    case Qt::Key_Left:
-        posx-=10;
-        updateGL();
-
-        break;
-    case Qt::Key_Right:
-        std::cout<<"key pressed"<<std::endl;
-        updateGL();
-        break;
-
-    case Qt::Key_Up:
-        posy+=10;
-        updateGL();
-        break;
-
-    case Qt::Key_Down:
-        posy-=10;
-        updateGL();
-        break;
-
-    default:
-        event->ignore();
-        break;
-    }
-}
-
 void glWidget::mousePressEvent ( QMouseEvent * event )
 {
     //sutilCurrentTime( &m_start_time );
     int state = 0; // GLUT_DOWN
     m_mouse->handleMouseFunc( event->button(), state, event->x(), event->y(), event->modifiers() );
-    //if ( event->button() == Qt::NoButton )
     m_scene->signalCameraChanged();
     updateGL();
-
-
-    if(event->button() == Qt::RightButton){
-        m_print_mem_usage = !m_print_mem_usage;
-        m_display_fps = !m_display_fps;
-        updateGL();
-    }
 }
 
 void glWidget::mouseReleaseEvent(QMouseEvent *event)
@@ -241,15 +209,10 @@ void glWidget::mouseReleaseEvent(QMouseEvent *event)
 
 void glWidget::mouseMoveEvent ( QMouseEvent * event )
 {
-    if(event->buttons() != Qt::NoButton){
+    if(event->buttons() != Qt::NoButton){ // GLUT_UP
         m_mouse->handleMoveFunc( event->x(), event->y() );
         m_scene->signalCameraChanged();
-        updateGL();
     }
-}
-
-void glWidget::timerEvent(QTimerEvent *_event)
-{
     updateGL();
 }
 
@@ -261,6 +224,7 @@ void glWidget::paintGL()
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     display();
+    update();
     //gluLookAt(posx,posy,1.0,posx,posy,0.0,0.0,-1.0,0.0);
 }
 
@@ -299,7 +263,6 @@ void glWidget::display()
       exit(2);
     }
 
-    setCurContinuousMode(CDProgressive);
     // Do not draw text on 1st frame -- issue on linux causes problems with
     // glDrawPixels call if drawText glutBitmapCharacter is called on first frame.
     if ( m_display_fps && m_cur_continuous_mode != CDNone && m_frame_count > 1 ) {
@@ -356,7 +319,6 @@ void glWidget::displayFrame()
     unsigned int vboId = 0;
     if( m_scene->usesVBOBuffer() ){
         vboId = buffer->getGLBOId();
-        std::cout<<"here: "<<buffer->getGLBOId()<<std::endl;
     }
 
     if (vboId)
@@ -528,4 +490,24 @@ void glWidget::quit(int return_code)
     sutilReportError( e.getErrorString().c_str() );
     exit(2);
   }
+}
+
+// This is an API function for restaring the progressive timeout timer.
+void glWidget::restartProgressiveTimer()
+{
+  // Unless the user has overridden it, progressive implies a finite continuous drawing timeout.
+  if(m_app_continuous_mode == CDProgressive && m_progressive_timeout < 0.0) {
+    m_progressive_timeout = 10.0;
+  }
+}
+
+// This is an API function for the app to specify its desired mode.
+void glWidget::setContinuousMode(contDraw_E continuous_mode)
+{
+  m_app_continuous_mode = continuous_mode;
+
+  // Unless the user has overridden it, progressive implies a finite continuous drawing timeout.
+  restartProgressiveTimer();
+
+  setCurContinuousMode(m_app_continuous_mode);
 }

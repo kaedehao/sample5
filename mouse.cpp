@@ -1,4 +1,5 @@
 #include "mouse.h"
+#include <QKeyEvent>
 #include <optixu/optixu_matrix_namespace.h>
 #include <iostream>
 
@@ -21,6 +22,7 @@
 //#endif
 
 #define GLUT_MOTION 2
+
 
 
 //-----------------------------------------------------------------------------
@@ -307,7 +309,7 @@ void Mouse::call_func(int x, int y)
     rotate(x, y);
   if (modifier == 0                 && button == Qt::MiddleButton)
     translate(x, y);
-  if (modifier == GLUT_ACTIVE_SHIFT && button == Qt::RightButton)
+  if (modifier == Qt::ShiftModifier && button == Qt::RightButton)
     fov(x, y);
   if (modifier == 0                 && button == Qt::RightButton)
     dolly(x, y);

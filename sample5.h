@@ -12,13 +12,16 @@
 #include <optixu/optixpp_namespace.h>
 #include "utility.h"
 #include <QImage>
+#include <QKeyEvent>
 
-#endif // SMAPLE5_H
+using namespace optix;
+
+class glWidget;
 
 class Sample5Scene
 {
 protected:
-    typedef optix::float3 float3;
+    typedef float3 float3;
 public:
     // Used to pass current camera info to the ray gen program at render time.
     // eye - Camera position
@@ -67,7 +70,12 @@ public:
     void trace( const RayGenCameraData& camera_data, bool& display );
 
     // Return the output buffer to be displayed
-    optix::Buffer getOutputBuffer();
+    Buffer getOutputBuffer();
+
+    bool keyPressEvent( int key );
+
+    void setAdaptiveAA( bool adaptive_aa ) { m_adaptive_aa = adaptive_aa; }
+    bool adaptive_aa(){ return m_adaptive_aa; }
 
     // This cleans up the Context.  If you override it, you should call
     // SampleScene::cleanUp() explicitly.
@@ -78,14 +86,18 @@ public:
     void   resize(unsigned int width, unsigned int height);
 
     // Accessor
-    optix::Context& getContext() { return m_context; }
+    Context& getContext() { return m_context; }
 
     // Scene API
-    void updateMaterial( float refraction_index );
     void updateGeometry( float radius );
+    void updateMaterial( float refraction_index );
+    void updateLights( int index, float position );
+    void updateAcceleration( bool accel );
+    void updateAntialiasing( bool aa ) { setAdaptiveAA( aa ); }
 
 private:
     int getEntryPoint() { return m_adaptive_aa ? AdaptivePinhole: Pinhole; }
+    void genRndSeeds( unsigned int width, unsigned int height );
 
     enum {
         Pinhole = 0,
@@ -94,19 +106,22 @@ private:
 
     void createGeometry();
 
+    Buffer       m_rnd_seeds;
     unsigned int m_frame_number;
-    bool m_adaptive_aa;
+    bool         m_adaptive_aa;
 
     unsigned int m_width;
     unsigned int m_height;
 
-    optix::Buffer m_outputBuffer;
+    //Buffer m_outputBuffer;
     static const char * const ptxpath( const std::string& target, const std::string& base );
+    std::string texpath( const std::string& base );
+    std::string texture_path;
 
 protected:
-    optix::Buffer createOutputBuffer(RTformat format, unsigned int width, unsigned int height);
+    Buffer createOutputBuffer(RTformat format, unsigned int width, unsigned int height);
 
-    optix::Context m_context;
+    Context m_context;
 
     bool   m_camera_changed;
     bool   m_use_vbo_buffer;
@@ -117,3 +132,4 @@ private:
   // Checks to see if CPU mode has been enabled and sets the appropriate flags.
   void updateCPUMode();
 };
+#endif // SMAPLE5_H

@@ -9,35 +9,35 @@
 #endif
 
 #include "sample5.h"
+#include "glwidget.h"
+#include <ImageLoader.h>
 #include "commonStructs.h"
+#include "src/random.h"
 #include <QColor>
 
 #include <optixu/optixu_math_namespace.h>
 #include <optixu/optixu.h>
-
 #include <iostream>
 //#include <sstream>
 //#include <cstdlib>
 //#include <algorithm>
 
 
-#define NUM_SPHERE 5
+#define NUM_SPHERE 2
 
-using namespace optix;
 //----------------------------------------------------------------------------------------------------------------------
 Sample5Scene::Sample5Scene()
-    : m_camera_changed( true ), m_use_vbo_buffer( false ), m_num_devices( 0 ), m_cpu_rendering_enabled( false ), m_frame_number( 0 ), m_width( 1024u ), m_height( 768u )
+    : m_camera_changed( true ), m_use_vbo_buffer( true ), m_num_devices( 0 ), m_cpu_rendering_enabled( false ), m_frame_number( 0 ), m_adaptive_aa( false ), m_width( 1024u ), m_height( 768u )
 {
     m_context = optix::Context::create();
 }
 //----------------------------------------------------------------------------------------------------------------------
 Sample5Scene::~Sample5Scene(){
     // clean up
-    m_outputBuffer->destroy();
+    getOutputBuffer()->destroy();
     m_context->destroy();
     m_context = 0;
 }
-
 
 const char* const Sample5Scene::ptxpath( const std::string& target, const std::string& base )
 {
@@ -52,6 +52,11 @@ void Sample5Scene::cleanUp()
   m_context = 0;
 }
 
+std::string Sample5Scene::texpath( const std::string& base )
+{
+    texture_path = "/Users/haoluo/qt-workspace/sample5/data";
+    return texture_path + "/" + base;
+}
 
 void Sample5Scene::resize(unsigned int width, unsigned int height)
 {
@@ -78,11 +83,18 @@ void Sample5Scene::resize(unsigned int width, unsigned int height)
 }
 
 //----------------------------------------------------------------------------------------------------------------------
+void Sample5Scene::genRndSeeds( unsigned int width, unsigned int height )
+{
+  unsigned int* seeds = static_cast<unsigned int*>( m_rnd_seeds->map() );
+  fillRandBuffer( seeds, width*height );
+  m_rnd_seeds->unmap();
+}
+
 void Sample5Scene::initScene( InitialCameraData& camera_data )
 {
     // context
     m_context->setRayTypeCount(2);
-    m_context->setEntryPointCount(1);
+    m_context->setEntryPointCount(2);
     m_context->setStackSize( 2800 );
 
     m_context["max_depth"]->setInt( 10u );
@@ -90,10 +102,11 @@ void Sample5Scene::initScene( InitialCameraData& camera_data )
     m_context["shadow_ray_type"]->setUint( 1u );
     m_context["frame_number"]->setUint( 0u );
     m_context["scene_epsilon"]->setFloat( 1.e-4f );
+    m_context["ambient_light_color"]->setFloat( 0.4f, 0.4f, 0.4f );
 
     // Render result bufffer
     m_context["output_buffer"]->set( createOutputBuffer(RT_FORMAT_UNSIGNED_BYTE4, m_width, m_height) );
-    m_outputBuffer = m_context["output_buffer"]->getBuffer();
+    //m_outputBuffer = m_context["output_buffer"]->getBuffer();
 
     // Pinhole Camera ray gen and exception program
     std::string ptx_path = ptxpath( "sample5", "pinhole_camera.cu" );
@@ -101,13 +114,18 @@ void Sample5Scene::initScene( InitialCameraData& camera_data )
     m_context->setExceptionProgram( Pinhole, m_context->createProgramFromPTXFile(ptx_path, "exception" ) );
 
     // Adaptive Pinhole Camera ray gen and exception program
-
-    // Miss program
-   Program miss_program = m_context->createProgramFromPTXFile( ptxpath( "sample5", "constantbg.cu" ), "miss" );
-    m_context->setMissProgram( 0, miss_program );
+    ptx_path = ptxpath( "sample5", "adaptive_pinhole_camera.cu" );
+    m_context->setRayGenerationProgram( AdaptivePinhole, m_context->createProgramFromPTXFile( ptx_path, "pinhole_camera" ) );
+    m_context->setExceptionProgram(     AdaptivePinhole, m_context->createProgramFromPTXFile( ptx_path, "exception" ) );
 
     m_context["bad_color"]->setFloat( 1.0f, 0.0f, 0.0f);
-    m_context["bg_color"]->setFloat( make_float3( 0.3f, 0.5f, 0.5f ) );
+
+    // Miss program
+   Program miss_program = m_context->createProgramFromPTXFile( ptxpath( "sample5", "envmap.cu" ), "envmap_miss" );
+    m_context->setMissProgram( 0, miss_program );
+    const float3 default_color = make_float3(1.0f, 1.0f, 1.0f);
+    m_context["envmap"]->setTextureSampler( loadTexture( m_context, texpath("CedarCity.hdr"), default_color) );
+    m_context["bg_color"]->setFloat( make_float3( 0.3f, 0.3f, 0.3f ) );
 
     // Lights
     BasicLight lights[] = {
@@ -134,6 +152,36 @@ void Sample5Scene::initScene( InitialCameraData& camera_data )
     m_context["V"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
     m_context["W"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
 
+    // Variance buffers
+    Buffer variance_sum_buffer = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL,
+                                                          RT_FORMAT_FLOAT4,
+                                                          m_width, m_height );
+    memset( variance_sum_buffer->map(), 0, m_width*m_height*sizeof(float4) );
+    variance_sum_buffer->unmap();
+    m_context["variance_sum_buffer"]->set( variance_sum_buffer );
+
+    Buffer variance_sum2_buffer = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL,
+                                                           RT_FORMAT_FLOAT4,
+                                                           m_width, m_height );
+    memset( variance_sum2_buffer->map(), 0, m_width*m_height*sizeof(float4) );
+    variance_sum2_buffer->unmap();
+    m_context["variance_sum2_buffer"]->set( variance_sum2_buffer );
+
+    // Sample count buffer
+    Buffer num_samples_buffer = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL,
+                                                         RT_FORMAT_UNSIGNED_INT,
+                                                         m_width, m_height );
+    memset( num_samples_buffer->map(), 0, m_width*m_height*sizeof(unsigned int) );
+    num_samples_buffer->unmap();
+    m_context["num_samples_buffer"]->set( num_samples_buffer);
+
+    // RNG seed buffer
+    m_rnd_seeds = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL,
+                                           RT_FORMAT_UNSIGNED_INT,
+                                           m_width, m_height );
+    m_context["rnd_seeds"]->set( m_rnd_seeds );
+    genRndSeeds( m_width, m_height );
+
     // Populate scene hierarchy
     createGeometry();
 
@@ -143,6 +191,21 @@ void Sample5Scene::initScene( InitialCameraData& camera_data )
 
 }
 //----------------------------------------------------------------------------------------------------------------------
+
+// Return whether we processed the key or not
+bool Sample5Scene::keyPressEvent( int key )
+{
+    switch ( key )
+    {
+        case Qt::Key_A:
+            m_adaptive_aa = !m_adaptive_aa;
+            m_camera_changed = true;
+            glWidget::setContinuousMode( m_adaptive_aa ? glWidget::CDProgressive : glWidget::CDNone );
+            return true;
+    }
+    return false;
+}
+
 Buffer Sample5Scene::getOutputBuffer()
 {
     return m_context["output_buffer"]->getBuffer();
@@ -416,10 +479,6 @@ Sample5Scene::trace( const RayGenCameraData& camera_data, bool& display )
 
 void Sample5Scene::trace( const RayGenCameraData& camera_data )
 {
-    if ( m_camera_changed ) {
-        m_frame_number = 0u;
-        m_camera_changed = false;
-    }
 //    std::cout<<"eye: "
 //            <<camera_data.eye.x<<", "
 //            <<camera_data.eye.y<<", "
@@ -443,11 +502,14 @@ void Sample5Scene::trace( const RayGenCameraData& camera_data )
 //            <<camera_data.W.y<<", "
 //            <<camera_data.W.z<<", "
 //            <<std::endl;
+    if ( m_camera_changed ) {
+        m_frame_number = 0u;
+        m_camera_changed = false;
+    }
 
     //launch it
     m_context["eye"]->setFloat( camera_data.eye );
     m_context["U"]->setFloat( camera_data.U );
-    //m_context["U"]->setFloat( make_float3( 3.849f, 0.0f, 0.0f ) );
     m_context["V"]->setFloat( camera_data.V );
     m_context["W"]->setFloat( camera_data.W );
     m_context["frame_number"]->setUint( m_frame_number++ );
@@ -456,7 +518,7 @@ void Sample5Scene::trace( const RayGenCameraData& camera_data )
     RTsize buffer_width, buffer_height;
     buffer->getSize( buffer_width, buffer_height );
 
-    m_context->launch( 0,
+    m_context->launch( 0,//getEntryPoint(),
                        static_cast<unsigned int>(buffer_width),
                        static_cast<unsigned int>(buffer_height) );
 
@@ -504,7 +566,11 @@ void Sample5Scene::trace( const RayGenCameraData& camera_data )
 //    return img;
 }
 
-//----------------------------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+//
+// Scene update
+//
+//-----------------------------------------------------------------------------
 void Sample5Scene::updateGeometry( float radius)//, float center )
 {
     Group            top_level_group = m_context["top_object"]-> getGroup();
@@ -521,10 +587,15 @@ void Sample5Scene::updateGeometry( float radius)//, float center )
     //geometry["center"]->setFloat( center, 0, 0 );   // set center
 
     // Mark Dirty
-    int childCount = top_level_group->getChildCount() - 1;
+    int childCount = top_level_group->getChildCount();
     for ( int i = 0; i < childCount; i++) {
-        transform = top_level_group->getChild<Transform>( i );
-        geometrygroup = transform->getChild<GeometryGroup>();
+        if( top_level_group->getChildType( i ) == RT_OBJECTTYPE_TRANSFORM ){
+            transform = top_level_group->getChild<Transform>( i );
+            geometrygroup = transform->getChild<GeometryGroup>();
+        }else{
+            geometrygroup = top_level_group->getChild<GeometryGroup>( i );
+            //geometrygroup = transform->getChild<GeometryGroup>();
+        }
         geometrygroup->getAcceleration()->markDirty();
     }
     top_level_group->getAcceleration()->markDirty();
@@ -539,4 +610,23 @@ void Sample5Scene::updateMaterial( float refraction_index )
     Material         material        = instance->getMaterial( 0 );
 
     material["refraction_index"]->setFloat( refraction_index );
+}
+
+void Sample5Scene::updateLights(int index, float pos){
+    index = 0;
+    /* Lights */
+    BasicLight lights[] = {
+        { make_float3( pos, 40.0f, 0.0f ), make_float3( 1.0f, 1.0f, 1.0f ), 1 }
+    };
+
+    memcpy( m_context["lights"]->getBuffer()->map(), lights, sizeof(lights) );
+    m_context["lights"]->getBuffer()->unmap();
+}
+
+void Sample5Scene::updateAcceleration( bool accel )
+{
+    if( accel )
+        m_context["top_object"]->getGroup()->setAcceleration( m_context->createAcceleration( "Trbvh", "Bvh" ) );
+    else
+        m_context["top_object"]->getGroup()->setAcceleration( m_context->createAcceleration( "NoAccel", "NoAccel" ) );
 }

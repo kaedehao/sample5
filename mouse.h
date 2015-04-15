@@ -4,7 +4,6 @@
 #define MOUSE_H
 
 #include <optixu/optixu_matrix_namespace.h>
-#include <QKeyEvent>
 
 class PinholeCamera;
 

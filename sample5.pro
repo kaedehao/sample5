@@ -20,7 +20,11 @@ SOURCES += main.cpp\
     sample2.cpp \
     mouse.cpp \
     utility.c \
-    DeviceMemoryLogger.cpp
+    DeviceMemoryLogger.cpp \
+    samplescene.cpp \
+    ImageLoader.cpp \
+    HDRLoader.cpp \
+    PPMLoader.cpp
 
 HEADERS  += mainwindow.h \
     glwidget.h \
@@ -30,10 +34,15 @@ HEADERS  += mainwindow.h \
     commonStructs.h \
     NsightHelper.h \
     sample2.h \
-    src/phong.h \
     mouse.h \
     utility.h \
-    DeviceMemoryLogger.h
+    DeviceMemoryLogger.h \
+    samplescene.h \
+    src/phong.h \
+    src/random.h \
+    ImageLoader.h \
+    HDRLoader.h \
+    PPMLoader.h
 
 FORMS    += mainwindow.ui
 
@@ -68,7 +77,9 @@ unix:LIBS += -L/usr/local/lib
 #Optix Stuff, so any optix program that we wish to turn into PTX code
 CUDA_SOURCES += src/normal_shader.cu \
                 src/pinhole_camera.cu \
+                src/adaptive_pinhole_camera.cu \
                 src/constantbg.cu \
+                src/envmap.cu \
                 src/sphere.cu \
                 src/draw_color.cu \
                 src/checker.cu \
