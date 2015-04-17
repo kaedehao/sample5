@@ -138,8 +138,13 @@ void MainWindow::on_Slider_paint_camera_valueChanged(int value)
     ui->widget->updateGL();
 }
 
-void MainWindow::on_comboBox_activated(int index)
+void MainWindow::on_comboBox_paint_camera_activated(int index)
 {
     glWidget::getScene()->paintCameraType( index );
     ui->widget->updateGL();
+}
+
+void MainWindow::on_toolButton_paint_camera_clicked()
+{
+
 }

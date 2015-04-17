@@ -154,9 +154,9 @@ void Sample5Scene::initScene( InitialCameraData& camera_data )
     // Painting camera
     m_context->setPrintEnabled(1);
     m_context->setPrintBufferSize(1028);
-    m_context["camera_paint_map"]->setTextureSampler( loadTexture( m_context, texpath("magic_bg.ppm"), default_color) );
+    m_context["camera_paint_map"]->setTextureSampler( loadTexture( m_context, texpath("paint_camera/magic_bg.ppm"), default_color) );
     // Posing camera
-    m_context["camera_pose_map"]->setTextureSampler( loadTexture( m_context, texpath("magic_bg.ppm"), default_color) );
+    m_context["camera_pose_map"]->setTextureSampler( loadTexture( m_context, texpath("paint_camera/cubist.ppm"), default_color) );
     // Paint or Pose or both
     m_context["paint_camera_type"]->setUint( 0u );
 

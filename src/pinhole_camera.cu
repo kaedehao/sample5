@@ -57,25 +57,28 @@ RT_PROGRAM void pinhole_camera()
   float2 d = make_float2(launch_index) / make_float2(launch_dim) * 2.f - 1.f;
   float3 ray_origin = eye;
   float3 ray_direction = normalize(d.x*U + d.y*V + W);
-  
+
+  if ( paint_camera_type == 1 || paint_camera_type == 2 )
+    ray_direction = normalize( ray_direction + cameraTexture(d, camera_pose_map) );
+
   optix::Ray ray = optix::make_Ray(ray_origin, ray_direction, radiance_ray_type, scene_epsilon, RT_DEFAULT_MAX);
+
+  // Painting camera
+  if ( paint_camera_type == 0 || paint_camera_type == 2)
+    paint_camera( &ray );
+//  else if ( paint_camera_type == 1 )
+//    pose_camera( &ray );
+//  else{
+//      paint_camera( &ray );
+//      pose_camera( &ray );
+//  }
 
   PerRayData_radiance prd;
   prd.importance = 1.f;
   prd.depth = 0;
 
-  // Painting camera
-  if ( paint_camera_type == 0 )
-    paint_camera( &ray );
-  else if ( paint_camera_type == 1 )
-    pose_camera( &ray );
-  else{
-      paint_camera( &ray );
-      pose_camera( &ray );
-  }
-
   rtTrace(top_object, ray, prd);
-  //rtPrintf( "map_color: (%f, %f, %f)\n", map_color.x, map_color.y, map_color.z );
+  //rtPrintf( "d: (%f, %f)\n", d.x, d.y );
 
 #ifdef TIME_VIEW
   clock_t t1 = clock(); 

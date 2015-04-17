@@ -8,6 +8,11 @@ rtTextureSampler<float4, 2> camera_paint_map;
 rtTextureSampler<float4, 2> camera_pose_map;
 rtDeclareVariable(float, paint_camera_scale, , ) = 0;
 
+static __device__ inline float3 cameraTexture( float2 d, rtTextureSampler<float4, 2> map )
+{
+    return make_float3( tex2D(map, d.x, d.y) ) * paint_camera_scale;
+}
+
 static __device__ inline float3 getColor( optix::Ray* ray, rtTextureSampler<float4, 2> map )
 {
     float theta = atan2f( ray->direction.x, ray->direction.z );
