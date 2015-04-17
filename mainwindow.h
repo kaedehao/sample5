@@ -35,6 +35,8 @@ private slots:
 
     void on_Slider_paint_camera_valueChanged(int value);
 
+    void on_comboBox_activated(int index);
+
 private:
     Ui::MainWindow *ui;
 };

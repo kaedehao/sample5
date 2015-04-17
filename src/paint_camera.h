@@ -4,29 +4,35 @@
 #include <optix_world.h>
 #include <optixu/optixu_math_namespace.h>
 
-rtTextureSampler<float4, 2> camera_map;
+rtTextureSampler<float4, 2> camera_paint_map;
+rtTextureSampler<float4, 2> camera_pose_map;
 rtDeclareVariable(float, paint_camera_scale, , ) = 0;
 
-static __host__ __device__ inline void paint_camera( optix::Ray* ray )
+static __device__ inline float3 getColor( optix::Ray* ray, rtTextureSampler<float4, 2> map )
 {
     float theta = atan2f( ray->direction.x, ray->direction.z );
     float phi   = M_PIf * 0.5f -  acosf( ray->direction.y );
     float u     = (theta + M_PIf) * (0.5f * M_1_PIf);
     float v     = 0.5f * ( 1.0f + sin(phi) );
 
-    float3 map  = make_float3( tex2D(camera_map, u, v) );
+    return make_float3( tex2D(map, u, v) );
+}
 
-    uchar4 map_color = make_color( map );
+static __device__ inline void paint_camera( optix::Ray* ray )
+{
+    float3 color = getColor( ray, camera_paint_map );
 
-    float3 map_data = make_float3( map_color.x,
-                                   map_color.y,
-                                   map_color.z );
-    map_data /= 255.0f;;
-//    rtPrintf( "Camera texture color: %d, %d, %d!\n", map_color.x, map_color.y, map_color.z );
+    //rtPrintf( "Camera texture color: %f, %f, %f!\n", map.x, map.y, map.z );
 
     // Apply painting on ray direction
-    ray->direction =  ray->direction + map * paint_camera_scale ;
+    ray->direction =  ray->direction + color * paint_camera_scale ;
+}
 
+static __device__ inline void pose_camera( optix::Ray* ray )
+{
+    float3 color = getColor( ray, camera_pose_map );
+    // Apply posing on ray origin
+    ray->origin =  ray->origin + color * paint_camera_scale * 2.0f ;
 }
 
 #endif // PAINT_CAMERA

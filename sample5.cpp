@@ -154,7 +154,11 @@ void Sample5Scene::initScene( InitialCameraData& camera_data )
     // Painting camera
     m_context->setPrintEnabled(1);
     m_context->setPrintBufferSize(1028);
-    m_context["camera_map"]->setTextureSampler( loadTexture( m_context, texpath("magic_bg.ppm"), default_color) );
+    m_context["camera_paint_map"]->setTextureSampler( loadTexture( m_context, texpath("magic_bg.ppm"), default_color) );
+    // Posing camera
+    m_context["camera_pose_map"]->setTextureSampler( loadTexture( m_context, texpath("magic_bg.ppm"), default_color) );
+    // Paint or Pose or both
+    m_context["paint_camera_type"]->setUint( 0u );
 
     // Variance buffers
     Buffer variance_sum_buffer = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL,
@@ -241,7 +245,7 @@ Buffer Sample5Scene::createOutputBuffer( RTformat format,
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     size_t element_size;
-    //m_context->checkError(rtuGetSizeForRTformat(format, &element_size));
+    m_context->checkError(rtuGetSizeForRTformat(format, &element_size));
     glBufferData(GL_ARRAY_BUFFER, element_size * width * height, 0, GL_STREAM_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
@@ -421,7 +425,7 @@ void Sample5Scene::createGeometry()
 
 
     // Initial transform matrix
-    const float x=-9.0f, y=1.0f, z=0.0f;
+    const float x=0.0f, y=1.0f, z=0.0f;
     // Matrices are row-major.
     float m[16] = { 1, 0, 0, x,
                     0, 1, 0, y,
@@ -452,8 +456,8 @@ void Sample5Scene::createGeometry()
 
         // Create transform node
         transform = m_context->createTransform();
-        m[3] += 3.0f;
         transform->setMatrix( 0, m, 0 );
+        m[3] += 3.0f;
         transform->setChild( geometrygroup );
 
         top_level_group->addChild( transform );
@@ -641,4 +645,9 @@ void Sample5Scene::updateAcceleration( bool accel )
 void Sample5Scene::updatePaintCamera( float scale )
 {
     m_context["paint_camera_scale"]->setFloat( scale );
+}
+
+void Sample5Scene::paintCameraType( unsigned int type )
+{
+    m_context["paint_camera_type"]->setUint( type );
 }

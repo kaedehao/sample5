@@ -95,6 +95,7 @@ public:
     void updateAcceleration( bool accel );
     void updateAntialiasing( bool aa ) { setAdaptiveAA( aa ); }
     void updatePaintCamera( float scale );
+    void paintCameraType( unsigned int type );
 
 private:
     int getEntryPoint() { return m_adaptive_aa ? AdaptivePinhole: Pinhole; }

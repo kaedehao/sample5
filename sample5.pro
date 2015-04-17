@@ -52,7 +52,7 @@ UI_HEADERS_DIR = ui
 OBJECTS_DIR = obj
 
 mac: LIBS += -framework GLUT
-else:unix|win32: LIBS += -lGLUT
+#else:unix|win32: LIBS += -lGLUT
 
 # Added stuff
 INCLUDEPATH +=./include /opt/local/include
@@ -120,7 +120,7 @@ linux:QMAKE_LIBDIR += /usr/local/OptiX/lib64
 
 #Add our cuda and optix libraries
 LIBS += -lcudart
-LIBS += -loptix
+LIBS += -loptix -loptixu -loptix_prime
 
 # nvcc flags (ptxas option verbose is always useful)
 # add the PTX flags to compile optix files

@@ -46,6 +46,7 @@ rtDeclareVariable(uint2, launch_index, rtLaunchIndex, );
 rtDeclareVariable(uint2, launch_dim,   rtLaunchDim, );
 rtDeclareVariable(float, time_view_scale, , ) = 1e-6f;
 
+rtDeclareVariable(unsigned int,  paint_camera_type, , );
 //#define TIME_VIEW
 
 RT_PROGRAM void pinhole_camera()
@@ -63,7 +64,15 @@ RT_PROGRAM void pinhole_camera()
   prd.importance = 1.f;
   prd.depth = 0;
 
-  paint_camera( &ray );
+  // Painting camera
+  if ( paint_camera_type == 0 )
+    paint_camera( &ray );
+  else if ( paint_camera_type == 1 )
+    pose_camera( &ray );
+  else{
+      paint_camera( &ray );
+      pose_camera( &ray );
+  }
 
   rtTrace(top_object, ray, prd);
   //rtPrintf( "map_color: (%f, %f, %f)\n", map_color.x, map_color.y, map_color.z );
