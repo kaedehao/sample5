@@ -121,10 +121,10 @@ void Sample5Scene::initScene( InitialCameraData& camera_data )
     m_context["bad_color"]->setFloat( 1.0f, 0.0f, 0.0f);
 
     // Miss program
-   Program miss_program = m_context->createProgramFromPTXFile( ptxpath( "sample5", "envmap.cu" ), "envmap_miss" );
+    Program miss_program = m_context->createProgramFromPTXFile( ptxpath( "sample5", "envmap.cu" ), "envmap_miss" );
     m_context->setMissProgram( 0, miss_program );
     const float3 default_color = make_float3(1.0f, 1.0f, 1.0f);
-    m_context["envmap"]->setTextureSampler( loadTexture( m_context, texpath("CedarCity.hdr"), default_color) );
+    m_context["envmap"]->setTextureSampler( loadTexture( m_context, texpath("autumn.ppm"), default_color) );
     m_context["bg_color"]->setFloat( make_float3( 0.3f, 0.3f, 0.3f ) );
 
     // Lights
@@ -140,7 +140,6 @@ void Sample5Scene::initScene( InitialCameraData& camera_data )
     light_buffer->unmap();
 
     m_context["lights"]->set( light_buffer );
-
     // Set up camera
     camera_data = InitialCameraData( make_float3( 0.0f, 0.0f, 5.0f ), // eye
                                      make_float3( 0.0f, 0.0f, 0.0f ), // lookat
@@ -151,6 +150,11 @@ void Sample5Scene::initScene( InitialCameraData& camera_data )
     m_context["U"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
     m_context["V"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
     m_context["W"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
+
+    // Painting camera
+    m_context->setPrintEnabled(1);
+    m_context->setPrintBufferSize(1028);
+    m_context["camera_map"]->setTextureSampler( loadTexture( m_context, texpath("magic_bg.ppm"), default_color) );
 
     // Variance buffers
     Buffer variance_sum_buffer = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL,
@@ -432,7 +436,10 @@ void Sample5Scene::createGeometry()
     for (int i =0; i<NUM_SPHERE; ++i)
     {
         // Create geometry instance
-        instance = m_context->createGeometryInstance( glass_sphere, &glass_matl, &glass_matl+1 );
+        if(i>0) // metal sphere
+            instance = m_context->createGeometryInstance( sphere, &metal_matl, &metal_matl+1 );
+        else
+            instance = m_context->createGeometryInstance( glass_sphere, &glass_matl, &glass_matl+1 );
 
         // place instance in geometry group
         geometrygroup = m_context->createGeometryGroup();
@@ -518,7 +525,7 @@ void Sample5Scene::trace( const RayGenCameraData& camera_data )
     RTsize buffer_width, buffer_height;
     buffer->getSize( buffer_width, buffer_height );
 
-    m_context->launch( 0,//getEntryPoint(),
+    m_context->launch( getEntryPoint(),
                        static_cast<unsigned int>(buffer_width),
                        static_cast<unsigned int>(buffer_height) );
 
@@ -629,4 +636,9 @@ void Sample5Scene::updateAcceleration( bool accel )
         m_context["top_object"]->getGroup()->setAcceleration( m_context->createAcceleration( "Trbvh", "Bvh" ) );
     else
         m_context["top_object"]->getGroup()->setAcceleration( m_context->createAcceleration( "NoAccel", "NoAccel" ) );
+}
+
+void Sample5Scene::updatePaintCamera( float scale )
+{
+    m_context["paint_camera_scale"]->setFloat( scale );
 }

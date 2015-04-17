@@ -42,7 +42,8 @@ HEADERS  += mainwindow.h \
     src/random.h \
     ImageLoader.h \
     HDRLoader.h \
-    PPMLoader.h
+    PPMLoader.h \
+    src/paint_camera.h
 
 FORMS    += mainwindow.ui
 

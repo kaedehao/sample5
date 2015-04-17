@@ -21,6 +21,7 @@
 
 #include <optix_world.h>
 #include "helpers.h"
+#include "paint_camera.h"
 
 using namespace optix;
 
@@ -62,7 +63,10 @@ RT_PROGRAM void pinhole_camera()
   prd.importance = 1.f;
   prd.depth = 0;
 
+  paint_camera( &ray );
+
   rtTrace(top_object, ray, prd);
+  //rtPrintf( "map_color: (%f, %f, %f)\n", map_color.x, map_color.y, map_color.z );
 
 #ifdef TIME_VIEW
   clock_t t1 = clock(); 
@@ -74,6 +78,8 @@ RT_PROGRAM void pinhole_camera()
   output_buffer[launch_index] = make_color( prd.result );
 #endif
 }
+
+
 
 RT_PROGRAM void exception()
 {

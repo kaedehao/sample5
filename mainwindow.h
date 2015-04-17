@@ -33,6 +33,8 @@ private slots:
 
     void on_checkBox_antialiasing_clicked(bool checked);
 
+    void on_Slider_paint_camera_valueChanged(int value);
+
 private:
     Ui::MainWindow *ui;
 };

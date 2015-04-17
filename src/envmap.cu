@@ -24,4 +24,5 @@ RT_PROGRAM void envmap_miss()
   float u     = (theta + M_PIf) * (0.5f * M_1_PIf);
   float v     = 0.5f * ( 1.0f + sin(phi) );
   prd_radiance.result = make_float3( tex2D(envmap, u, v) );
+  //rtPrintf( "Environment texture color: %d, %d, %d!\n", prd_radiance.result.x, prd_radiance.result.y, prd_radiance.result.z );
 }

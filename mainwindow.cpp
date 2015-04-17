@@ -130,3 +130,10 @@ void MainWindow::on_checkBox_antialiasing_clicked(bool checked)
     glWidget::getScene()->keyPressEvent( Qt::Key_A );
     ui->widget->updateGL();
 }
+
+void MainWindow::on_Slider_paint_camera_valueChanged(int value)
+{
+    float scale = value / 10.0f;
+    glWidget::getScene()->updatePaintCamera( scale );
+    ui->widget->updateGL();
+}

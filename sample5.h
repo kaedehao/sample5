@@ -94,6 +94,7 @@ public:
     void updateLights( int index, float position );
     void updateAcceleration( bool accel );
     void updateAntialiasing( bool aa ) { setAdaptiveAA( aa ); }
+    void updatePaintCamera( float scale );
 
 private:
     int getEntryPoint() { return m_adaptive_aa ? AdaptivePinhole: Pinhole; }

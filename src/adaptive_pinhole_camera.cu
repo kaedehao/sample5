@@ -24,6 +24,8 @@
 #include "helpers.h"
 #include "random.h"
 
+#include "paint_camera.h"
+
 using namespace optix;
 
 struct PerRayData_radiance
@@ -95,6 +97,8 @@ static __device__ __inline__ float3 trace( float2 screen_coord )
   PerRayData_radiance prd;
   prd.importance = 1.f;
   prd.depth = 0;
+
+  paint_camera( &ray );
 
   rtTrace(top_object, ray, prd);
   return prd.result;
