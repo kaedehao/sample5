@@ -1,12 +1,12 @@
-#if defined(__APPLE__)
-#  include <OpenGL/gl.h>
-#else
-#  include <GL/glew.h>
-#  if defined(_WIN32)
-#    include <GL/wglew.h>
-#  endif
-#  include <GL/gl.h>
-#endif
+//#if defined(__APPLE__)
+//#  include <OpenGL/gl.h>
+//#else
+//#  include <GL/glew.h>
+//#  if defined(_WIN32)
+//#    include <GL/wglew.h>
+//#  endif
+//#  include <GL/gl.h>
+//#endif
 
 #include "sample5.h"
 #include "glwidget.h"
@@ -152,8 +152,8 @@ void Sample5Scene::initScene( InitialCameraData& camera_data )
     m_context["W"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
 
     // Painting camera
-    m_context->setPrintEnabled(1);
-    m_context->setPrintBufferSize(1028);
+    //m_context->setPrintEnabled(1);
+    //m_context->setPrintBufferSize(1028);
     m_context["camera_paint_map"]->setTextureSampler( loadTexture( m_context, texpath("paint_camera/magic_bg.ppm"), default_color) );
     // Posing camera
     m_context["camera_pose_map"]->setTextureSampler( loadTexture( m_context, texpath("paint_camera/cubist.ppm"), default_color) );
@@ -529,7 +529,7 @@ void Sample5Scene::trace( const RayGenCameraData& camera_data )
     RTsize buffer_width, buffer_height;
     buffer->getSize( buffer_width, buffer_height );
 
-    m_context->launch( getEntryPoint(),
+    m_context->launch( 0,//getEntryPoint(),
                        static_cast<unsigned int>(buffer_width),
                        static_cast<unsigned int>(buffer_height) );
 

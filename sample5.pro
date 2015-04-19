@@ -47,18 +47,17 @@ HEADERS  += mainwindow.h \
 
 FORMS    += mainwindow.ui
 
-MOC_DIR = moc
-UI_HEADERS_DIR = ui
+MOC_DIR = moca
 OBJECTS_DIR = obj
 
 mac: LIBS += -framework GLUT
 #else:unix|win32: LIBS += -lGLUT
 
 # Added stuff
-INCLUDEPATH +=./include /opt/local/include
+#INCLUDEPATH +=./include /opt/local/include
 
 #Whatever libs you want in your program
-DESTDIR=./
+#DESTDIR=./
 
 #Whatever libs you want in your program
 CONFIG += console
@@ -67,13 +66,13 @@ CONFIG -= app_bundle
 
 # use this to suppress some warning from boost
 QMAKE_CXXFLAGS_WARN_ON += "-Wno-unused-parameter"
-#QMAKE_CXXFLAGS += -msse -msse2 -msse3
+QMAKE_CXXFLAGS += -msse -msse2 -msse3
 QMAKE_CXXFLAGS_WARN_ON += "-Wno-ignored-qualifiers"
 macx:QMAKE_CXXFLAGS += -arch x86_64
-macx:INCLUDEPATH += /usr/local/include/
+#macx:INCLUDEPATH += /usr/local/include/
 # define the _DEBUG flag for the graphics lib
 
-unix:LIBS += -L/usr/local/lib
+#unix:LIBS += -L/usr/local/lib
 
 #Optix Stuff, so any optix program that we wish to turn into PTX code
 CUDA_SOURCES += src/normal_shader.cu \
@@ -96,17 +95,17 @@ CUDA_SOURCES += src/normal_shader.cu \
 macx:CUDA_DIR = /Developer/NVIDIA/CUDA-6.5
 linux:CUDA_DIR = /usr/local/cuda-6.5
 # Path to cuda toolkit install
-macx:CUDA_SDK = /Developer/NVIDIA/CUDA-6.5/samples
-linux:CUDA_SDK = /usr/local/cuda-6.5/samples
+#macx:CUDA_SDK = /Developer/NVIDIA/CUDA-6.5/samples
+#linux:CUDA_SDK = /usr/local/cuda-6.5/samples
 
 # include paths, change this to wherever you have installed OptiX
-macx:INCLUDEPATH += sutil
-macx:INCLUDEPATH += /Developer/OptiX/SDK
-linux:INCLUDEPATH += /usr/local/OptiX/SDK/sutil
-linux:INCLUDEPATH += /usr/local/OptiX/SDK
+#macx:INCLUDEPATH += sutil
+#macx:INCLUDEPATH += /Developer/OptiX/SDK
+#linux:INCLUDEPATH += /usr/local/OptiX/SDK/sutil
+#linux:INCLUDEPATH += /usr/local/OptiX/SDK
 INCLUDEPATH += $$CUDA_DIR/include
-INCLUDEPATH += $$CUDA_SDK/common/inc/
-INCLUDEPATH += $$CUDA_DIR/../shared/inc/
+#INCLUDEPATH += $$CUDA_SDK/common/inc/
+#INCLUDEPATH += $$CUDA_DIR/../shared/inc/
 macx:INCLUDEPATH += /Developer/OptiX/include
 linux:INCLUDEPATH += /usr/local/OptiX/include
 
@@ -114,7 +113,7 @@ linux:INCLUDEPATH += /usr/local/OptiX/include
 #QMAKE_LIBDIR += $$CUDA_DIR/lib64
 macx:QMAKE_LIBDIR += $$CUDA_DIR/lib
 linux:QMAKE_LIBDIR += $$CUDA_DIR/lib64
-QMAKE_LIBDIR += $$CUDA_SDK/common/lib
+#QMAKE_LIBDIR += $$CUDA_SDK/common/lib
 macx:QMAKE_LIBDIR += /Developer/OptiX/lib64
 linux:QMAKE_LIBDIR += /usr/local/OptiX/lib64
 
