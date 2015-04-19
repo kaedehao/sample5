@@ -3,17 +3,18 @@
 
 #include <QGLWidget>
 
-#include <optix.h>
+#include <optixu/optixpp_namespace.h>
 #include "utility.h"
+#include "SampleScene.h"
 
-#include "sample1.h"
-#include "sample2.h"
-#include "sample5.h"
+//#include "sample1.h"
+//#include "sample2.h"
+
 
 
 class Mouse;
 class PinholeCamera;
-//class Sample5Scene;
+
 
 //-----------------------------------------------------------------------------
 //
@@ -40,6 +41,7 @@ protected:
     void resizeGL(int width, int height);
     void initializeGL();
     void paintGL();
+    //void paintEvent(QPaintEvent *event);
 
     void mouseMoveEvent( QMouseEvent *event );
     void mousePressEvent( QMouseEvent *event );
@@ -47,12 +49,13 @@ protected:
 
 private:
 
-    Sample1* sample1Scene;
-    Sample2* sample2Scene;
+    //Sample1* sample1Scene;
+    //Sample2* sample2Scene;
 
     // Draw text to screen at window pos x,y.  To make this public we will need to have
     // a public helper that caches the text for use in the display func
     static void drawText( const std::string& text, float x, float y, void* font );
+    static QPainter* painter;
 
     // Do the actual rendering to the display
     static void displayFrame();
@@ -69,7 +72,7 @@ private:
 
     static Mouse*         m_mouse;
     static PinholeCamera* m_camera;
-    static Sample5Scene*  m_scene;
+    static SampleScene*   m_scene;
 
     static double         m_last_frame_time;
     static unsigned int   m_last_frame_count;
@@ -101,7 +104,7 @@ private:
     static bool           m_enable_cpu_rendering; // enables CPU execution of OptiX programs
 
 public:
-    static Sample5Scene* getScene(){ return m_scene; }
+    static SampleScene* getScene(){ return m_scene; }
 
     static void printMemUsage( bool checked) { m_print_mem_usage = checked ;}
     static void displayFps( bool checked) { m_display_fps = checked ;}

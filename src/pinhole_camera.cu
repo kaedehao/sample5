@@ -58,6 +58,7 @@ RT_PROGRAM void pinhole_camera()
   float3 ray_origin = eye;
   float3 ray_direction = normalize(d.x*U + d.y*V + W);
 
+  // Posing camera
   if ( paint_camera_type == 1 || paint_camera_type == 2 )
     ray_direction = normalize( ray_direction + cameraTexture(d, camera_pose_map) );
 

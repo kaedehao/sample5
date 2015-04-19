@@ -21,13 +21,14 @@
 #include <NsightHelper.h>
 
 #include <QMouseEvent>
+#include "sample5.h"
 
 using namespace optix;
 
 //----------------------------------------------------------------------------------------------------------------------
 Mouse*         glWidget::m_mouse                = 0;
 PinholeCamera* glWidget::m_camera               = 0;
-Sample5Scene*  glWidget::m_scene                = 0;
+SampleScene*   glWidget::m_scene                = 0;
 
 double         glWidget::m_last_frame_time      = 0.0;
 unsigned int   glWidget::m_last_frame_count     = 0;
@@ -57,6 +58,8 @@ double         glWidget::m_progressive_timeout  = -1.;
 int            glWidget::m_num_devices          = 0;
 
 bool           glWidget::m_enable_cpu_rendering = false;
+
+QPainter*      glWidget::painter                = 0;
 //----------------------------------------------------------------------------------------------------------------------
 
 glWidget::glWidget(QWidget *parent) :
@@ -98,7 +101,10 @@ void glWidget::initializeGL()
 //      sample2Scene->init();
 //      sample2Scene->trace();
 
-    m_scene = new Sample5Scene();
+    bool adaptive_aa = false;
+    Sample5Scene* scene = new Sample5Scene();
+    scene->setAdaptiveAA( adaptive_aa );
+    m_scene = scene;
     m_scene->enableCPURendering( m_enable_cpu_rendering );
     m_scene->setNumDevices( m_num_devices );
 
@@ -116,14 +122,14 @@ void glWidget::initializeGL()
 //    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
 
     // If m_app_continuous_mode was already set to CDBenchmark* on the command line then preserve it.
-    contDraw_E continuous_mode = m_scene->adaptive_aa() ? glWidget::CDProgressive : glWidget::CDNone;
+    contDraw_E continuous_mode = adaptive_aa ? glWidget::CDProgressive : glWidget::CDNone;
     setContinuousMode( m_app_continuous_mode == CDNone ? continuous_mode : m_app_continuous_mode );
 
     int buffer_width;
     int buffer_height;
     try {
       // Set up scene
-      Sample5Scene::InitialCameraData camera_data;
+      SampleScene::InitialCameraData camera_data;
       m_scene->initScene( camera_data );
 
       //if( m_initial_window_width > 0 && m_initial_window_height > 0)
@@ -217,6 +223,11 @@ void glWidget::mouseMoveEvent ( QMouseEvent * event )
 }
 
 //----------------------------------------------------------------------------------------------------------------------
+//void glWidget::paintEvent(QPaintEvent *event)
+//{
+//    paintGL();
+//}
+
 void glWidget::paintGL()
 {
     //glutSetWindowTitle(window_title);
@@ -226,6 +237,7 @@ void glWidget::paintGL()
     display();
     update();
     //gluLookAt(posx,posy,1.0,posx,posy,0.0,0.0,-1.0,0.0);
+
 }
 
 void glWidget::display()
@@ -239,7 +251,7 @@ void glWidget::display()
       // Don't be tempted to just start filling in the values outside of a constructor,
       // because if you add a parameter it's easy to forget to add it here.
 
-      Sample5Scene::RayGenCameraData camera_data( eye, U, V, W );
+      SampleScene::RayGenCameraData camera_data( eye, U, V, W );
 
       {
         nvtx::ScopedRange r( "trace" );
@@ -462,6 +474,24 @@ void glWidget::drawText( const std::string& text, float x, float y, void* font )
 
   // Restore state
   glPopAttrib();
+
+//    QPen textPen;
+//    QFont textFont;
+
+
+//    painter->setRenderHint(QPainter::Antialiasing);
+
+//    textPen = QPen(Qt::white);
+//    textFont.setPixelSize(50);
+
+//    painter->setPen(textPen);
+//    painter->setFont(textFont);
+
+
+//    painter->drawText(QRect(-50, -50, 100, 100), Qt::AlignCenter, QStringLiteral("Qt"));
+//    //painter.drawText(0, 0, QStringLiteral("Qt"));
+
+//    painter->end();
 }
 
 // This is an internal function that does the actual work.

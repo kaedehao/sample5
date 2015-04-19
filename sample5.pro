@@ -21,10 +21,10 @@ SOURCES += main.cpp\
     mouse.cpp \
     utility.c \
     DeviceMemoryLogger.cpp \
-    samplescene.cpp \
     ImageLoader.cpp \
     HDRLoader.cpp \
-    PPMLoader.cpp
+    PPMLoader.cpp \
+    SampleScene.cpp
 
 HEADERS  += mainwindow.h \
     glwidget.h \
@@ -37,13 +37,13 @@ HEADERS  += mainwindow.h \
     mouse.h \
     utility.h \
     DeviceMemoryLogger.h \
-    samplescene.h \
     src/phong.h \
     src/random.h \
     ImageLoader.h \
     HDRLoader.h \
     PPMLoader.h \
-    src/paint_camera.h
+    src/paint_camera.h \
+    SampleScene.h
 
 FORMS    += mainwindow.ui
 

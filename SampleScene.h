@@ -1,27 +1,18 @@
-//
-//  Sample5Scene.h
-//  Optix
-//
-//  Created by Hao Luo on 3/13/15.
-//  Copyright (c) 2015 Hao Luo. All rights reserved.
-//
-
-#ifndef SMAPLE5_H
-#define SMAPLE5_H
+#ifndef SAMPLESCENE_H
+#define SAMPLESCENE_H
 
 #include <optixu/optixpp_namespace.h>
 #include "utility.h"
-#include <QImage>
-#include <QKeyEvent>
 
-using namespace optix;
-
-class glWidget;
-
-class Sample5Scene
+//-----------------------------------------------------------------------------
+//
+// SampleScene virtual class
+//
+//-----------------------------------------------------------------------------
+class SampleScene
 {
-protected:
-    typedef float3 float3;
+public:protected:
+    typedef optix::float3 float3;
 public:
     // Used to pass current camera info to the ray gen program at render time.
     // eye - Camera position
@@ -53,77 +44,72 @@ public:
       float  vfov;
     };
 
-    Sample5Scene();
-    ~Sample5Scene();
+    SampleScene();
+    virtual ~SampleScene() {}
 
     void  signalCameraChanged() { m_camera_changed = true; }
 
     void  setNumDevices( int ndev );
     void  enableCPURendering(bool enable);
+    void  incrementCPUThreads(int delta); // can pass in negative values
 
     void  setUseVBOBuffer( bool onoff ) { m_use_vbo_buffer = onoff; }
     bool  usesVBOBuffer() { return m_use_vbo_buffer; }
 
-    //From SampleScene
-    void initScene( InitialCameraData &camera_data );
-    void trace( const RayGenCameraData &camera_data );
-    void trace( const RayGenCameraData& camera_data, bool& display );
+    static const char * const ptxpath( const std::string& target, const std::string& base );
+
+    //----------------------------------------------------------------------------
+    // Pure virtual interface to be implemented
+    //----------------------------------------------------------------------------
+
+    // Create the optix scene and return initial viewing parameters
+    virtual void initScene( InitialCameraData &camera_data )=0;
+
+    // Update camera shader with new viewing params and then trace
+    virtual void trace( const RayGenCameraData &camera_data )=0;
+
+    // Update camera shader with new viewing params and then trace
+    virtual void trace( const RayGenCameraData& camera_data, bool& display );
 
     // Return the output buffer to be displayed
-    Buffer getOutputBuffer();
+    virtual optix::Buffer getOutputBuffer()=0;
 
-    bool keyPressEvent( int key );
-
-    void setAdaptiveAA( bool adaptive_aa ) { m_adaptive_aa = adaptive_aa; }
-    bool adaptive_aa(){ return m_adaptive_aa; }
+    //----------------------------------------------------------------------------
+    // Optional virtual interface
+    //----------------------------------------------------------------------------
 
     // This cleans up the Context.  If you override it, you should call
     // SampleScene::cleanUp() explicitly.
-    void cleanUp();
+    virtual void   cleanUp();
 
     // Will resize the output buffer (which might use a VBO) then call doResize.
     // Override this if you want to handle ALL buffer resizes yourself.
-    void   resize(unsigned int width, unsigned int height);
+    virtual void   resize(unsigned int width, unsigned int height);
+
+    // Where derived classes should handle resizing all buffers except outputBuffer.
+    //virtual void   doResize(unsigned int width, unsigned int height) {}
+
+    // Use this to add additional keys. Some are already handled but
+    // can be overridden.  Should return true if key was handled, false otherwise.
+    virtual bool   keyPressed(unsigned char key, int x, int y) { return false; }
+    virtual bool   keyPressEvent( int key ) { return false; }
 
     // Accessor
-    Context& getContext() { return m_context; }
+    optix::Context& getContext() { return m_context; }
 
     // Scene API
     void updateGeometry( float radius );
     void updateMaterial( float refraction_index );
     void updateLights( int index, float position );
     void updateAcceleration( bool accel );
-    void updateAntialiasing( bool aa ) { setAdaptiveAA( aa ); }
+
     void updatePaintCamera( float scale );
     void paintCameraType( unsigned int type );
 
-private:
-    int getEntryPoint() { return m_adaptive_aa ? AdaptivePinhole: Pinhole; }
-    void genRndSeeds( unsigned int width, unsigned int height );
-
-    enum {
-        Pinhole = 0,
-        AdaptivePinhole = 1
-    };
-
-    void createGeometry();
-
-    Buffer       m_rnd_seeds;
-    unsigned int m_frame_number;
-    bool         m_adaptive_aa;
-
-    unsigned int m_width;
-    unsigned int m_height;
-
-    //Buffer m_outputBuffer;
-    static const char * const ptxpath( const std::string& target, const std::string& base );
-    std::string texpath( const std::string& base );
-    std::string texture_path;
-
 protected:
-    Buffer createOutputBuffer(RTformat format, unsigned int width, unsigned int height);
+    optix::Buffer createOutputBuffer(RTformat format, unsigned int width, unsigned int height);
 
-    Context m_context;
+    optix::Context m_context;
 
     bool   m_camera_changed;
     bool   m_use_vbo_buffer;
@@ -134,4 +120,5 @@ private:
   // Checks to see if CPU mode has been enabled and sets the appropriate flags.
   void updateCPUMode();
 };
-#endif // SMAPLE5_H
+
+#endif // SAMPLESCENE_H
