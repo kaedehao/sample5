@@ -105,6 +105,8 @@ public:
 
     void updatePaintCamera( float scale );
     void paintCameraType( unsigned int type );
+    void paintCameraImage( std::string fileName );
+    void updateEnvmapOnOff( bool envmap );
 
 protected:
     optix::Buffer createOutputBuffer(RTformat format, unsigned int width, unsigned int height);

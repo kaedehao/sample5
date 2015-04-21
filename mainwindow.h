@@ -39,6 +39,8 @@ private slots:
 
     void on_toolButton_paint_camera_clicked();
 
+    void on_checkBox_clicked(bool checked);
+
 private:
     Ui::MainWindow *ui;
 };

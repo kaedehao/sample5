@@ -2,6 +2,7 @@
 #include "ui_mainwindow.h"
 
 #include <QKeyEvent>
+#include <QFileDialog>
 #include <iostream>
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -33,24 +34,6 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
     switch(event->key()) {
     case Qt::Key_Escape:
         close();
-        break;
-    case Qt::Key_Left:
-        //posx-=10;
-        ui->widget->updateGL();
-
-        break;
-    case Qt::Key_Right:
-        ui->widget->updateGL();
-        break;
-
-    case Qt::Key_Up:
-        //posy+=10;
-        ui->widget->updateGL();
-        break;
-
-    case Qt::Key_Down:
-        //posy-=10;
-        ui->widget->updateGL();
         break;
 
     case Qt::Key_M:
@@ -146,5 +129,17 @@ void MainWindow::on_comboBox_paint_camera_activated(int index)
 
 void MainWindow::on_toolButton_paint_camera_clicked()
 {
+    QString fileName;
+    fileName = QFileDialog::getOpenFileName(this,
+                                            tr("Load Image"),
+                                            "/Users/haoluo/qt-workspace",
+                        tr("Image Files (*.png *.jpg *.bmp *.ppm *.hdr)"));
+    glWidget::getScene()->paintCameraImage( fileName.toStdString() );
+    ui->widget->updateGL();
+}
 
+void MainWindow::on_checkBox_clicked(bool checked)
+{
+    glWidget::getScene()->updateEnvmapOnOff( checked );
+    ui->widget->updateGL();
 }

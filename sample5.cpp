@@ -5,38 +5,84 @@
 
 #include "src/random.h"
 #include <QColor>
-
+#include <iostream>
 
 #define NUM_SPHERE 2
 
 using namespace optix;
 
-////----------------------------------------------------------------------------------------------------------------------
-//Sample5Scene::~Sample5Scene(){
-//    // clean up
-//    getOutputBuffer()->destroy();
-//    m_context->destroy();
-//    m_context = 0;
-//}
+//------------------------------------------------------------------------------
+//
+// Sample5Scene implementation
+//
+//------------------------------------------------------------------------------
+Sample5Scene::Sample5Scene():
+  MeshScene( false, false, false),
+  m_frame_number( 0 ),
+  m_adaptive_aa( false ),
 
-//----------------------------------------------------------------------------------------------------------------------
+    m_camera_mode       ( CM_PINHOLE ),
+    m_shade_mode        ( SM_PHONG ),
+    m_aa_enabled        ( false ),
+    m_ground_plane_enabled ( false ),
+    m_ao_radius         ( 1.0f ),
+    m_ao_sample_mult    ( 1 ),
+    m_light_scale       ( 1.0f ),
+    m_accum_enabled     ( false ),
+    m_scene_epsilon     ( 1e-4f ),
+    m_animation         ( false )
+{
+}
+
 void Sample5Scene::initScene( InitialCameraData& camera_data )
 {
+  initContext();
+  initLights();
+  initMaterial();
+  initGeometry();
+  initCamera( camera_data );
+  preprocess();
+}
+
+void Sample5Scene::initContext()
+{
+    setAA( true );
     // context
-    m_context->setRayTypeCount(2);
+    m_context->setRayTypeCount(3);
     m_context->setEntryPointCount(2);
     m_context->setStackSize( 2800 );
 
-    m_context["max_depth"]->setInt( 10u );
     m_context["radiance_ray_type"]->setUint( 0u );
     m_context["shadow_ray_type"]->setUint( 1u );
-    m_context["frame_number"]->setUint( 0u );
-    m_context["scene_epsilon"]->setFloat( 1.e-4f );
-    m_context["ambient_light_color"]->setFloat( 0.4f, 0.4f, 0.4f );
+    m_context["max_depth"]->setInt( 5u );
+    m_context["ambient_light_color"]->setFloat( 0.2f, 0.2f, 0.2f );
+    m_context["output_buffer"]->set( createOutputBuffer(RT_FORMAT_UNSIGNED_BYTE4, WIDTH, HEIGHT) );
+    m_context[ "jitter_factor"       ]->setFloat( m_aa_enabled ? 1.0f : 0.0f );
 
-    // Render result bufffer
-    m_context["output_buffer"]->set( createOutputBuffer(RT_FORMAT_UNSIGNED_BYTE4, m_width, m_height) );
-    //m_outputBuffer = m_context["output_buffer"]->getBuffer();
+    m_context["frame_number"]->setUint( 0u );
+
+    m_accum_enabled = m_aa_enabled                         ||
+                     m_shade_mode == SM_AO                 ||
+                     m_shade_mode == SM_ONE_BOUNCE_DIFFUSE ||
+                     m_shade_mode == SM_AO_PHONG;
+
+    // Ray generation program setup
+    const std::string camera_name = m_camera_mode == CM_PINHOLE ? "pinhole_camera" : "orthographic_camera";
+    const std::string camera_file = m_accum_enabled             ? "accum_camera.cu" :
+                                    m_camera_mode == CM_PINHOLE ? "pinhole_camera.cu"  :
+                                                                 "orthographic_camera.cu";
+
+    if( m_accum_enabled ) {
+      // The raygen program needs accum_buffer
+      m_accum_buffer = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_FLOAT4,
+                                              WIDTH, HEIGHT );
+      m_context["accum_buffer"]->set( m_accum_buffer );
+      resetAccumulation();
+    }
+
+//    const std::string camera_ptx  = ptxpath( "sample5", camera_file );
+//    Program ray_gen_program = m_context->createProgramFromPTXFile( camera_ptx, camera_name );
+//    m_context->setRayGenerationProgram( 0, ray_gen_program );
 
     // Pinhole Camera ray gen and exception program
     std::string ptx_path = ptxpath( "sample5", "pinhole_camera.cu" );
@@ -48,19 +94,61 @@ void Sample5Scene::initScene( InitialCameraData& camera_data )
     m_context->setRayGenerationProgram( AdaptivePinhole, m_context->createProgramFromPTXFile( ptx_path, "pinhole_camera" ) );
     m_context->setExceptionProgram(     AdaptivePinhole, m_context->createProgramFromPTXFile( ptx_path, "exception" ) );
 
-    m_context["bad_color"]->setFloat( 1.0f, 0.0f, 0.0f);
+//    const std::string except_ptx  = ptxpath( "sample5", camera_file );
+//    m_context->setExceptionProgram( 0, m_context->createProgramFromPTXFile( except_ptx, "exception" ) );
+    m_context["bad_color"]->setFloat( 0.0f, 1.0f, 0.0f);
 
-    // Miss program
-    Program miss_program = m_context->createProgramFromPTXFile( ptxpath( "sample5", "envmap.cu" ), "envmap_miss" );
-    m_context->setMissProgram( 0, miss_program );
+    // Miss program constant background
+//    ptx_path = ptxpath( "sample5", "constantbg.cu" );
+//    m_context->setMissProgram( 0, m_context->createProgramFromPTXFile( ptx_path, "miss" ) );
+//    m_context["bg_color"]->setFloat( make_float3( 0.3f, 0.3f, 0.3f ) );
+
+    // Miss program envmap
+    ptx_path = ptxpath( "sample5", "envmap.cu" );
+    m_context->setMissProgram( 0, m_context->createProgramFromPTXFile( ptx_path, "envmap_miss" ) );
     const float3 default_color = make_float3(1.0f, 1.0f, 1.0f);
-    m_context["envmap"]->setTextureSampler( loadTexture( m_context, texpath("autumn.ppm"), default_color) );
-    m_context["bg_color"]->setFloat( make_float3( 0.3f, 0.3f, 0.3f ) );
+    m_context["envmap"]->setTextureSampler( loadTexture( m_context, datapath("autumn.ppm"), default_color) );
 
-    // Lights
+
+    // Variance buffers
+    Buffer variance_sum_buffer = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL,
+                                                          RT_FORMAT_FLOAT4,
+                                                          WIDTH, HEIGHT );
+    memset( variance_sum_buffer->map(), 0, WIDTH*HEIGHT*sizeof(float4) );
+    variance_sum_buffer->unmap();
+    m_context["variance_sum_buffer"]->set( variance_sum_buffer );
+
+    Buffer variance_sum2_buffer = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL,
+                                                           RT_FORMAT_FLOAT4,
+                                                           WIDTH, HEIGHT );
+    memset( variance_sum2_buffer->map(), 0, WIDTH*HEIGHT*sizeof(float4) );
+    variance_sum2_buffer->unmap();
+    m_context["variance_sum2_buffer"]->set( variance_sum2_buffer );
+
+    // Sample count buffer
+    Buffer num_samples_buffer = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL,
+                                                         RT_FORMAT_UNSIGNED_INT,
+                                                         WIDTH, HEIGHT );
+    memset( num_samples_buffer->map(), 0, WIDTH*HEIGHT*sizeof(unsigned int) );
+    num_samples_buffer->unmap();
+    m_context["num_samples_buffer"]->set( num_samples_buffer);
+
+    // RNG seed buffer
+    m_rnd_seeds = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL,
+                                           RT_FORMAT_UNSIGNED_INT,
+                                           WIDTH, HEIGHT );
+    m_context["rnd_seeds"]->set( m_rnd_seeds );
+    genRndSeeds( WIDTH, HEIGHT );
+}
+
+void Sample5Scene::initLights()
+{
+    // Lights buffer
     BasicLight lights[] = {
-        { make_float3( 60.0f, 40.0f, 0.0f ), make_float3( 1.0f, 1.0f, 1.0f ), 1 }
-        };
+      { make_float3( -60.0f,  30.0f, -120.0f ), make_float3( 0.2f, 0.2f, 0.25f )*m_light_scale, 0, 0 },
+      { make_float3( -60.0f,   0.0f,  120.0f ), make_float3( 0.1f, 0.1f, 0.10f )*m_light_scale, 0, 0 },
+      { make_float3(  60.0f,  60.0f,   60.0f ), make_float3( 0.7f, 0.7f, 0.65f )*m_light_scale, 1, 0 }
+    };
 
     Buffer light_buffer = m_context->createBuffer( RT_BUFFER_INPUT );
     light_buffer->setFormat( RT_FORMAT_USER );
@@ -70,74 +158,120 @@ void Sample5Scene::initScene( InitialCameraData& camera_data )
     light_buffer->unmap();
 
     m_context["lights"]->set( light_buffer );
-    // Set up camera
-    camera_data = InitialCameraData( make_float3( 0.0f, 0.0f, 5.0f ), // eye
-                                     make_float3( 0.0f, 0.0f, 0.0f ), // lookat
-                                     make_float3( 0.0f, 1.0f, 0.0f ), // up
-                                     60.0f );                         // vfov
-
-    m_context["eye"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
-    m_context["U"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
-    m_context["V"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
-    m_context["W"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
-
-    // Painting camera
-    //m_context->setPrintEnabled(1);
-    //m_context->setPrintBufferSize(1028);
-    m_context["camera_paint_map"]->setTextureSampler( loadTexture( m_context, texpath("paint_camera/magic_bg.ppm"), default_color) );
-    // Posing camera
-    m_context["camera_pose_map"]->setTextureSampler( loadTexture( m_context, texpath("paint_camera/6624-normal.ppm"), default_color) );
-    // Paint or Pose or both
-    m_context["paint_camera_type"]->setUint( 0u );
-
-    // Variance buffers
-    Buffer variance_sum_buffer = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL,
-                                                          RT_FORMAT_FLOAT4,
-                                                          m_width, m_height );
-    memset( variance_sum_buffer->map(), 0, m_width*m_height*sizeof(float4) );
-    variance_sum_buffer->unmap();
-    m_context["variance_sum_buffer"]->set( variance_sum_buffer );
-
-    Buffer variance_sum2_buffer = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL,
-                                                           RT_FORMAT_FLOAT4,
-                                                           m_width, m_height );
-    memset( variance_sum2_buffer->map(), 0, m_width*m_height*sizeof(float4) );
-    variance_sum2_buffer->unmap();
-    m_context["variance_sum2_buffer"]->set( variance_sum2_buffer );
-
-    // Sample count buffer
-    Buffer num_samples_buffer = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL,
-                                                         RT_FORMAT_UNSIGNED_INT,
-                                                         m_width, m_height );
-    memset( num_samples_buffer->map(), 0, m_width*m_height*sizeof(unsigned int) );
-    num_samples_buffer->unmap();
-    m_context["num_samples_buffer"]->set( num_samples_buffer);
-
-    // RNG seed buffer
-    m_rnd_seeds = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL,
-                                           RT_FORMAT_UNSIGNED_INT,
-                                           m_width, m_height );
-    m_context["rnd_seeds"]->set( m_rnd_seeds );
-    genRndSeeds( m_width, m_height );
-
-    // Populate scene hierarchy
-    createGeometry();
-
-    // Prepare to run
-    m_context->validate();
-    m_context->compile();
-
 }
 
+void Sample5Scene::initMaterial()
+{
+    // Normal material
+    Program normal_ch = m_context->createProgramFromPTXFile( ptxpath( "sample5", "normal_shader.cu" ), "closest_hit_radiance" );
+    normal_matl = m_context->createMaterial();
+    normal_matl->setClosestHitProgram( 0, normal_ch );
+
+    // Phong material
+    metal_matl = m_context->createMaterial();
+    makeMaterialPrograms( metal_matl, "phong.cu", "closest_hit_radiance", "any_hit_shadow" );
+
+    metal_matl["Ka"]->setFloat( 0.2f, 0.5f, 0.5f );
+    metal_matl["Kd"]->setFloat( 0.2f, 0.7f, 0.8f );
+    metal_matl["Ks"]->setFloat( 0.9f, 0.9f, 0.9f );
+    metal_matl["phong_exp"]->setFloat( 64 );
+    metal_matl["reflectivity"]->setFloat( 0.5f,  0.5f,  0.5f);
+
+    // Glass material
+    glass_matl = m_context->createMaterial();
+    makeMaterialPrograms( glass_matl, "glass.cu", "closest_hit_radiance", "any_hit_shadow" );
+
+    glass_matl["importance_cutoff"]->setFloat( 01e-2f );
+    glass_matl["cutoff_color"]->setFloat( 0.034f, 0.055f, 0.085f );
+    glass_matl["fresnel_exponent"]->setFloat( 3.0f );
+    glass_matl["fresnel_minimum"]->setFloat( 0.1f );
+    glass_matl["fresnel_maximum"]->setFloat( 1.0f );
+    glass_matl["refraction_index"]->setFloat( 1.4f );
+    glass_matl["refraction_color"]->setFloat( 1.0f, 1.0f, 1.0f );
+    glass_matl["reflection_color"]->setFloat( 1.0f, 1.0f, 1.0f );
+    glass_matl["refraction_maxdepth"]->setInt( 10 );
+    glass_matl["reflection_maxdepth"]->setInt( 5 );
+    float3 extinction = make_float3(.83f, .83f, .83f);
+    glass_matl["extinction_constant"]->setFloat( log(extinction.x), log(extinction.y), log(extinction.z) );
+    glass_matl["shadow_attenuation"]->setFloat( 0.6f, 0.6f, 0.6f );
+
+    // Checker material for floor
+    floor_matl = m_context->createMaterial();
+    makeMaterialPrograms( floor_matl, "checker.cu", "closest_hit_radiance", "any_hit_shadow" );
+
+    floor_matl["Kd1"]->setFloat( 0.8f, 0.3f, 0.15f);
+    floor_matl["Ka1"]->setFloat( 0.8f, 0.3f, 0.15f);
+    floor_matl["Ks1"]->setFloat( 0.0f, 0.0f, 0.0f);
+    floor_matl["Kd2"]->setFloat( 0.9f, 0.85f, 0.05f);
+    floor_matl["Ka2"]->setFloat( 0.9f, 0.85f, 0.05f);
+    floor_matl["Ks2"]->setFloat( 0.0f, 0.0f, 0.0f);
+    floor_matl["inv_checker_size"]->setFloat( 32.0f, 16.0f, 1.0f );
+    floor_matl["phong_exp1"]->setFloat( 0.0f );
+    floor_matl["phong_exp2"]->setFloat( 0.0f );
+    floor_matl["reflectivity1"]->setFloat( 0.0f, 0.0f, 0.0f);
+    floor_matl["reflectivity2"]->setFloat( 0.0f, 0.0f, 0.0f);
+
+  //Mesh Materials
+  m_shade_mode = SM_PHONG;
+  switch( m_shade_mode ) {
+    case SM_PHONG: {
+      // Use the default obj_material created by OptixMesh if model has no material, but use this for the ground plane, if any
+      break;
+    }
+
+    case SM_NORMAL: {
+      const std::string ptx_path = ptxpath("sample5", "normal_shader.cu");
+      m_material = m_context->createMaterial();
+      m_material->setClosestHitProgram( 0, m_context->createProgramFromPTXFile( ptx_path, "closest_hit_radiance" ) );
+      break;
+    }
+
+    case SM_AO: {
+      m_material = m_context->createMaterial();
+      makeMaterialPrograms( m_material, "ambocc.cu", "closest_hit_radiance", "any_hit_shadow" );
+      break;
+    }
+
+    case SM_AO_PHONG: {
+      m_material = m_context->createMaterial();
+      makeMaterialPrograms( m_material, "ambocc.cu", "closest_hit_radiance", "any_hit_shadow" );
+
+      // the ao phong shading uses monochrome single-float values for Kd, etc.,
+      // so it won't make sense to use the float4 colors from m_default_material_params
+      m_context["Kd"]->setFloat(1.0f);
+      m_context["Ka"]->setFloat(0.6f);
+      m_context["Ks"]->setFloat(0.0f);
+      m_context["Kr"]->setFloat(0.0f);
+      m_context["phong_exp"]->setFloat(0.0f);
+      break;
+    }
+
+    if( m_accum_enabled ) {
+      //genRndSeeds( WIDTH, HEIGHT );
+    }
+
+  }
+}
+
+void Sample5Scene::makeMaterialPrograms( Material material, const char *filename,
+                                                            const char *ch_program_name,
+                                                            const char *ah_program_name )
+{
+  Program ch_program = m_context->createProgramFromPTXFile( ptxpath("sample5", filename), ch_program_name );
+  Program ah_program = m_context->createProgramFromPTXFile( ptxpath("sample5", filename), ah_program_name );
+
+  material->setClosestHitProgram( 0, ch_program );
+  material->setAnyHitProgram( 1, ah_program );
+}
 //----------------------------------------------------------------------------------------------------------------------
-void Sample5Scene::createGeometry()
+void Sample5Scene::initGeometry()
 {
     // Sphere geometry
     std::string sphere_ptx( ptxpath( "sample5", "sphere.cu") );
     Geometry sphere = m_context->createGeometry();
     sphere->setPrimitiveCount( 1u );
     sphere->setBoundingBoxProgram( m_context->createProgramFromPTXFile( sphere_ptx, "bounds" ) );
-    sphere->setIntersectionProgram( m_context->createProgramFromPTXFile( sphere_ptx, "intersect" ) );
+    sphere->setIntersectionProgram( m_context->createProgramFromPTXFile( sphere_ptx, "robust_intersect" ) );
     sphere["sphere"]->setFloat( 0, 0, 0, 1.0f );
 
     // Sphere Shell geometry
@@ -147,7 +281,6 @@ void Sample5Scene::createGeometry()
     glass_sphere->setBoundingBoxProgram( m_context->createProgramFromPTXFile( shell_ptx, "bounds" ) );
     glass_sphere->setIntersectionProgram( m_context->createProgramFromPTXFile( shell_ptx, "intersect" ) );
     glass_sphere["center"]->setFloat( 0, 0, 0 );
-
     glass_sphere["radius1"]->setFloat( 0.96f );
     glass_sphere["radius2"]->setFloat( 1.0f );
 
@@ -171,70 +304,13 @@ void Sample5Scene::createGeometry()
     parallelogram["v2"]->setFloat( v2 );
     parallelogram["anchor"]->setFloat( anchor );
 
-
-    // Normal material
-    Program normal_ch = m_context->createProgramFromPTXFile( ptxpath( "sample5", "normal_shader.cu" ), "closest_hit_radiance" );
-    Material normal_matl = m_context->createMaterial();
-    normal_matl->setClosestHitProgram( 0, normal_ch );
-
-    // Phong material
-    Program phong_ch = m_context->createProgramFromPTXFile( ptxpath( "sample5", "phong.cu" ),  "closest_hit_radiance" );
-    Program phong_ah = m_context->createProgramFromPTXFile( ptxpath( "sample5", "phong.cu" ), "any_hit_shadow" );
-    Material metal_matl = m_context->createMaterial();
-    metal_matl->setClosestHitProgram( 0, phong_ch );
-    metal_matl->setAnyHitProgram( 1, phong_ah );
-    metal_matl["Ka"]->setFloat( 0.2f, 0.5f, 0.5f );
-    metal_matl["Kd"]->setFloat( 0.2f, 0.7f, 0.8f );
-    metal_matl["Ks"]->setFloat( 0.9f, 0.9f, 0.9f );
-    metal_matl["phong_exp"]->setFloat( 64 );
-    metal_matl["reflectivity"]->setFloat( 0.5f,  0.5f,  0.5f);
-
-    // Glass material
-    Program glass_ch = m_context->createProgramFromPTXFile( ptxpath( "sample5", "glass.cu" ), "closest_hit_radiance" );
-    Program glass_ah = m_context->createProgramFromPTXFile( ptxpath( "sample5", "glass.cu" ), "any_hit_shadow" );
-    Material glass_matl = m_context->createMaterial();
-    glass_matl->setClosestHitProgram( 0, glass_ch );
-    glass_matl->setAnyHitProgram( 1, glass_ah );
-
-    glass_matl["importance_cutoff"]->setFloat( 01e-2f );
-    glass_matl["cutoff_color"]->setFloat( 0.034f, 0.055f, 0.085f );
-    glass_matl["fresnel_exponent"]->setFloat( 3.0f );
-    glass_matl["fresnel_minimum"]->setFloat( 0.1f );
-    glass_matl["fresnel_maximum"]->setFloat( 1.0f );
-    glass_matl["refraction_index"]->setFloat( 1.4f );
-    glass_matl["refraction_color"]->setFloat( 1.0f, 1.0f, 1.0f );
-    glass_matl["reflection_color"]->setFloat( 1.0f, 1.0f, 1.0f );
-    glass_matl["refraction_maxdepth"]->setInt( 10 );
-    glass_matl["reflection_maxdepth"]->setInt( 5 );
-    float3 extinction = make_float3(.83f, .83f, .83f);
-    glass_matl["extinction_constant"]->setFloat( log(extinction.x), log(extinction.y), log(extinction.z) );
-    glass_matl["shadow_attenuation"]->setFloat( 0.6f, 0.6f, 0.6f );
-
-    // Checker material for floor
-    Program check_ch = m_context->createProgramFromPTXFile(ptxpath( "sample5", "checker.cu" ), "closest_hit_radiance" );
-    Program check_ah = m_context->createProgramFromPTXFile(ptxpath( "sample5", "checker.cu" ), "any_hit_shadow" );
-    Material floor_matl = m_context->createMaterial();
-    floor_matl->setClosestHitProgram( 0, check_ch );
-    floor_matl->setAnyHitProgram( 1, check_ah );
-
-    floor_matl["Kd1"]->setFloat( 0.8f, 0.3f, 0.15f);
-    floor_matl["Ka1"]->setFloat( 0.8f, 0.3f, 0.15f);
-    floor_matl["Ks1"]->setFloat( 0.0f, 0.0f, 0.0f);
-    floor_matl["Kd2"]->setFloat( 0.9f, 0.85f, 0.05f);
-    floor_matl["Ka2"]->setFloat( 0.9f, 0.85f, 0.05f);
-    floor_matl["Ks2"]->setFloat( 0.0f, 0.0f, 0.0f);
-    floor_matl["inv_checker_size"]->setFloat( 32.0f, 16.0f, 1.0f );
-    floor_matl["phong_exp1"]->setFloat( 0.0f );
-    floor_matl["phong_exp2"]->setFloat( 0.0f );
-    floor_matl["reflectivity1"]->setFloat( 0.0f, 0.0f, 0.0f);
-    floor_matl["reflectivity2"]->setFloat( 0.0f, 0.0f, 0.0f);
-
     // Initial transform matrix
-    const float x=0.0f, y=1.0f, z=0.0f;
+    const float tx=0.0f, ty=1.0f, tz=0.0f;
+    const float sx=1.0f, sy=1.0f, sz=1.0f;
     // Matrices are row-major.
-    float m[16] = { 1, 0, 0, x,
-                    0, 1, 0, y,
-                    0, 0, 1, z,
+    float m[16] = { sx, 0, 0, tx,
+                    0, sy, 0, ty,
+                    0, 0, sz, tz,
                     0, 0, 0, 1 };
 
     // Create GIs for each piece of geometry
@@ -261,10 +337,9 @@ void Sample5Scene::createGeometry()
 
         // Create transform node
         transform = m_context->createTransform();
-        transform->setMatrix( 0, m, 0 );
         m[3] += 3.0f;
+        transform->setMatrix( 0, m, 0 );
         transform->setChild( geometrygroup );
-
         top_level_group->addChild( transform );
     }
 
@@ -276,14 +351,111 @@ void Sample5Scene::createGeometry()
     geometrygroup->setAcceleration( m_context->createAcceleration( "NoAccel",  "NoAccel" ) );
     top_level_group->addChild( geometrygroup );
 
+    //Load OBJ model
+    double start, end;
+    sutilCurrentTime(&start);
 
+    setMesh( (datapath("models/cow.obj")).c_str() );
+
+    m_geometry_group = m_context->createGeometryGroup();
+    OptixMesh loader( m_context, m_geometry_group,
+                      m_accel_builder.c_str(), m_accel_traverser.c_str(),
+                      m_accel_refine.c_str(), m_accel_large_mesh );
+
+    std::string prog_path( ptxpath( "sample5", "triangle_mesh_iterative.cu") );
+    Program mesh_intersect = m_context->createProgramFromPTXFile( prog_path, "mesh_intersect" );
+    loader.setDefaultIntersectionProgram( mesh_intersect );
+    //loader.setLoadingTransform();
+    loader.loadBegin_Geometry( m_filename );
+
+    // Override default OptixMesh material for most shade modes
+    if( m_shade_mode == SM_NORMAL || m_shade_mode == SM_AO || m_shade_mode == SM_AO_PHONG
+        || m_shade_mode == SM_ONE_BOUNCE_DIFFUSE )
+    {
+      for( size_t i = 0; i < loader.getMaterialCount(); ++i ) {
+        loader.setOptixMaterial( static_cast<int>(i), m_material );
+      }
+    }
+
+    loader.setOptixMaterial(0, glass_matl);
+
+    m_aabb = loader.getSceneBBox();
+
+    loader.loadFinish_Materials();
+
+    // Load acceleration structure from a file if that was enabled on the
+    // command line, and if we can find a cache file. Note that the type of
+    // acceleration used will be overridden by what is found in the file.
+    loadAccelCache();
+
+    //Scale Mesh
+    m[0] = m[5] = m[10] += 100.0f;
+    //Translate
+    m[3] = -2.0f;
+    m[7] = 0.0f;
+    transform = m_context->createTransform();
+    transform->setMatrix(0, m, 0);
+    transform->setChild( m_geometry_group );
+    //top_level_group->addChild( transform );
+
+    sutilCurrentTime(&end);
+    std::cerr << "Time to load " << (m_accel_large_mesh ? "and cluster " : "") << "geometry: " << end-start << " s.\n";
+
+    // mark acceleration as dirty
     top_level_group->setAcceleration( m_context->createAcceleration( "Trbvh", "Bvh" ) );
     top_level_group->getAcceleration()->markDirty();
 
-    // mark acceleration as dirty
-
     m_context["top_object"]->set( top_level_group );
     m_context["top_shadower"]->set( top_level_group );
+}
+
+void Sample5Scene::initCamera( InitialCameraData& camera_data )
+{
+    // Set up camera
+    camera_data = InitialCameraData( make_float3( 0.0f, 0.0f, 5.0f ), // eye
+                                     make_float3( 0.0f, 0.0f, 0.0f ), // lookat
+                                     make_float3( 0.0f, 1.0f, 0.0f ), // up
+                                     60.0f );                         // vfov
+
+     // Declare camera variables.  The values do not matter, they will be overwritten in trace.
+    m_context["eye"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
+    m_context["U"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
+    m_context["V"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
+    m_context["W"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
+
+    // Painting camera
+    //m_context->setPrintEnabled(1);
+    //m_context->setPrintBufferSize(1028);
+
+    const float3 default_color = make_float3(1.0f, 1.0f, 1.0f);
+    m_context["camera_paint_map"]->setTextureSampler( loadTexture( m_context, datapath("paint_camera/magic_bg.ppm"), default_color) );
+    // Posing camera
+    m_context["camera_pose_map"]->setTextureSampler( loadTexture( m_context, datapath("paint_camera/cubist_b&w.ppm"), default_color) );
+    // Paint or Pose or both
+    m_context["paint_camera_type"]->setUint( 0u );
+}
+
+void Sample5Scene::preprocess()
+{
+    // Settings which rely on previous initialization
+    m_scene_epsilon = 1.e-4f * m_aabb.maxExtent();
+    //m_scene_epsilon = 1.e-4f;
+    m_context["scene_epsilon"]->setFloat( m_scene_epsilon );
+    m_context[ "occlusion_distance" ]->setFloat( m_aabb.maxExtent() * 0.3f * m_ao_radius );
+
+    // Prepare to run
+    m_context->validate();
+    double start, end_compile, end_AS_build;
+    sutilCurrentTime(&start);
+    m_context->compile();
+    sutilCurrentTime(&end_compile);
+    std::cerr << "Time to compile kernel: "<<end_compile-start<<" s.\n";
+    m_context->launch(0,0);
+    sutilCurrentTime(&end_AS_build);
+    std::cerr << "Time to build AS      : "<<end_AS_build-end_compile<<" s.\n";
+
+    // Save cache file
+//    saveAccelCache();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -328,17 +500,36 @@ void Sample5Scene::trace( const RayGenCameraData& camera_data )
     RTsize buffer_width, buffer_height;
     buffer->getSize( buffer_width, buffer_height );
 
+    if( m_accum_enabled && !m_camera_changed ) {
+      // Use more AO samples if the camera is not moving, for increased !/$.
+      // Do this above launch to avoid overweighting the first frame
+      m_context["sqrt_occlusion_samples"]->setInt( 3 * m_ao_sample_mult );
+      m_context["sqrt_diffuse_samples"]->setInt( 3 );
+    }
+
     m_context->launch( getEntryPoint(),
                        static_cast<unsigned int>(buffer_width),
                        static_cast<unsigned int>(buffer_height) );
 
-//    QImage img(m_width,m_height,QImage::Format_RGB32);
+    if( m_accum_enabled ) {
+      // Update frame number for accumulation.
+      ++m_frame;
+      if( m_camera_changed ) {
+        m_camera_changed = false;
+        resetAccumulation();
+      }
+
+      // The frame number is used as part of the random seed.
+      m_context["frame"]->setInt( m_frame );
+    }
+
+//    QImage img(WIDTH,HEIGHT,QImage::Format_RGB32);
 //    QColor color;
 //    int idx;
 //    void* data = getOutputBuffer()->map();
 //    typedef struct { float r; float g; float b; float a;} rgb;
 //    rgb* rgb_data = (rgb*)data;
-//    for(unsigned int i=0; i<m_width*m_height; ++i){
+//    for(unsigned int i=0; i<WIDTH*HEIGHT; ++i){
 //        //std::cout<<rgb_data[i].r<<","<<rgb_data[i].g<<","<<rgb_data[i].b<<std::endl;
 
 
@@ -364,9 +555,9 @@ void Sample5Scene::trace( const RayGenCameraData& camera_data )
 ////        float alpha = rgb_data[i].a; if(alpha>1.0) alpha=1.0;
 ////        color.setRgbF(red,green,blue,alpha);
 //        color.setRgbF(rgb_data[i].r,rgb_data[i].g,rgb_data[i].b,rgb_data[i].a);
-//        idx = floor((float)i/m_width);
+//        idx = floor((float)i/WIDTH);
 
-//        img.setPixel(i-(idx*m_width), idx, color.rgb());
+//        img.setPixel(i-(idx*WIDTH), idx, color.rgb());
 
 //    }
 //    getOutputBuffer()->unmap();
@@ -391,20 +582,38 @@ bool Sample5Scene::keyPressEvent( int key )
     return false;
 }
 
-
 Buffer Sample5Scene::getOutputBuffer()
 {
     return m_context["output_buffer"]->getBuffer();
 }
 
-void Sample5Scene::genRndSeeds( unsigned int width, unsigned int height )
+void Sample5Scene::resetAccumulation()
 {
-  unsigned int* seeds = static_cast<unsigned int*>( m_rnd_seeds->map() );
-  fillRandBuffer( seeds, width*height );
-  m_rnd_seeds->unmap();
+  m_frame = 0;
+  m_context[ "frame"                  ]->setInt( m_frame );
+  m_context[ "sqrt_occlusion_samples" ]->setInt( 1 * m_ao_sample_mult );
+  m_context[ "sqrt_diffuse_samples"   ]->setInt( 1 );
 }
 
-std::string Sample5Scene::texpath( const std::string& base )
+void Sample5Scene::genRndSeeds( unsigned int width, unsigned int height )
+{
+//  unsigned int* seeds = static_cast<unsigned int*>( m_rnd_seeds->map() );
+//  fillRandBuffer( seeds, width*height );
+//  m_rnd_seeds->unmap();
+
+    // Init random number buffer if necessary.
+    if( m_rnd_seeds.get() == 0 ) {
+      m_rnd_seeds = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_UNSIGNED_INT,
+                                           WIDTH, HEIGHT);
+      m_context["rnd_seeds"]->setBuffer(m_rnd_seeds);
+    }
+
+    unsigned int* seeds = static_cast<unsigned int*>( m_rnd_seeds->map() );
+    fillRandBuffer(seeds, width*height);
+    m_rnd_seeds->unmap();
+}
+
+std::string Sample5Scene::datapath( const std::string& base )
 {
     texture_path = "/Users/haoluo/qt-workspace/sample5/data";
     return texture_path + "/" + base;

@@ -14,47 +14,64 @@ TEMPLATE = app
 SOURCES += main.cpp\
         mainwindow.cpp \
     glwidget.cpp \
-    #src/sample1.c
     sample1.cpp \
     sample5.cpp \
     sample2.cpp \
-    mouse.cpp \
-    utility.c \
-    DeviceMemoryLogger.cpp \
-    ImageLoader.cpp \
-    HDRLoader.cpp \
-    PPMLoader.cpp \
-    SampleScene.cpp
+    util/mouse.cpp \
+    util/utility.c \
+    util/DeviceMemoryLogger.cpp \
+    util/ImageLoader.cpp \
+    util/HDRLoader.cpp \
+    util/PPMLoader.cpp \
+    util/SampleScene.cpp \
+    util/MeshScene.cpp \
+    util/OptixMesh.cpp \
+    util/OptixMeshImpl.cpp \
+    util/MeshBase.cpp \
+    util/sutil.c \
+    util/ImageDisplay.cpp \
+    util/rply-1.01/rply.c
 
 HEADERS  += mainwindow.h \
     glwidget.h \
-    #sutil/ImageDisplay.h \
     sample1.h \
     sample5.h \
-    commonStructs.h \
-    NsightHelper.h \
+    commonStructs.h \  
     sample2.h \
-    mouse.h \
-    utility.h \
-    DeviceMemoryLogger.h \
+    src/paint_camera.h \
     src/phong.h \
     src/random.h \
-    ImageLoader.h \
-    HDRLoader.h \
-    PPMLoader.h \
-    src/paint_camera.h \
-    SampleScene.h
+    src/helpers.h \
+    util/SampleScene.h \
+    util/MeshScene.h \
+    util/NsightHelper.h \
+    util/mouse.h \
+    util/utility.h \
+    util/DeviceMemoryLogger.h \
+    util/ImageLoader.h \
+    util/HDRLoader.h \
+    util/PPMLoader.h \
+    util/OptixMesh.h \
+    util/OptixMeshImpl.h \
+    util/MeshBase.h \
+    util/OptixMeshClasses.h \
+    util/MeshException.h \
+    util/sutil.h \
+    util/sampleConfig.h \
+    util/ImageDisplay.h \
+    util/rply-1.01/rply.h \
 
 FORMS    += mainwindow.ui
 
-MOC_DIR = moca
+MOC_DIR = moc
 OBJECTS_DIR = obj
 
 mac: LIBS += -framework GLUT
 #else:unix|win32: LIBS += -lGLUT
 
 # Added stuff
-#INCLUDEPATH +=./include /opt/local/include
+INCLUDEPATH +=./util ./src
+#/opt/local/include
 
 #Whatever libs you want in your program
 #DESTDIR=./
@@ -88,6 +105,8 @@ CUDA_SOURCES += src/normal_shader.cu \
                 src/sphere_shell.cu \
                 src/phong.cu \
                 src/box.cu \
+                src/ambocc.cu \
+                src/accum_camera.cu \
 
 
 #This will change for you, just set it to wherever you have installed cuda
@@ -107,6 +126,7 @@ INCLUDEPATH += $$CUDA_DIR/include
 #INCLUDEPATH += $$CUDA_SDK/common/inc/
 #INCLUDEPATH += $$CUDA_DIR/../shared/inc/
 macx:INCLUDEPATH += /Developer/OptiX/include
+macx:INCLUDEPATH += /Developer/OptiX/include/optixu
 linux:INCLUDEPATH += /usr/local/OptiX/include
 
 # lib dirs

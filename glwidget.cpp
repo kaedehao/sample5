@@ -1,5 +1,3 @@
-#include "glwidget.h"
-
 #if defined(__APPLE__)
 #  include <GLUT/glut.h>
 #  define GL_FRAMEBUFFER_SRGB_EXT           0x8DB9
@@ -11,6 +9,8 @@
 #  endif
 #  include <GL/glut.h>
 #endif
+
+#include "glwidget.h"
 
 #include "mouse.h"
 #include <DeviceMemoryLogger.h>

@@ -9,6 +9,7 @@
 #endif
 
 #include "SampleScene.h"
+#include <ImageLoader.h>
 
 #include <optixu/optixu_math_namespace.h>
 #include <optixu/optixu.h>
@@ -29,7 +30,7 @@ using namespace optix;
 //-----------------------------------------------------------------------------
 
 SampleScene::SampleScene()
-  : m_camera_changed( true ), m_use_vbo_buffer( true ), m_num_devices( 0 ), m_cpu_rendering_enabled( false )
+  : m_camera_changed( true ), m_use_vbo_buffer( true ), m_num_devices( 0 ), m_cpu_rendering_enabled( true )
 {
   m_context = Context::create();
   updateCPUMode();
@@ -273,4 +274,42 @@ void SampleScene::updatePaintCamera( float scale )
 void SampleScene::paintCameraType( unsigned int type )
 {
     m_context["paint_camera_type"]->setUint( type );
+}
+
+void SampleScene::paintCameraImage( std::string fileName )
+{
+    const float3 default_color = make_float3(1.0f, 1.0f, 1.0f);
+    int paint_type = m_context["paint_camera_type"]->getInt();
+
+    if( paint_type == 0 ){
+        m_context["camera_paint_map"]->setTextureSampler( loadTexture( m_context, fileName, default_color) );
+    }
+    else if ( paint_type == 1 )
+        m_context["camera_pose_map"]->setTextureSampler( loadTexture( m_context, fileName, default_color) );
+    else{
+        m_context["camera_paint_map"]->setTextureSampler( loadTexture( m_context, fileName, default_color) );
+        m_context["camera_pose_map"]->setTextureSampler( loadTexture( m_context, fileName, default_color) );
+    }
+}
+
+std::string texpath( const std::string& base )
+{
+    std::string texture_path = "/Users/haoluo/qt-workspace/sample5/data";
+    return texture_path + "/" + base;
+}
+
+void SampleScene::updateEnvmapOnOff(bool envmap)
+{
+    std::string ptx_path;
+    if( envmap ){
+        ptx_path = ptxpath( "sample5", "envmap.cu" );
+        m_context->setMissProgram( 0, m_context->createProgramFromPTXFile( ptx_path, "envmap_miss" ) );
+        const float3 default_color = make_float3(1.0f, 1.0f, 1.0f);
+        m_context["envmap"]->setTextureSampler( loadTexture( m_context, texpath("autumn.ppm"), default_color) );
+    }
+    else{
+        ptx_path = ptxpath( "sample5", "constantbg.cu" );
+        m_context->setMissProgram( 0, m_context->createProgramFromPTXFile( ptx_path, "miss" ) );
+        m_context["bg_color"]->setFloat( make_float3( 0.3f, 0.3f, 0.3f ) );
+    }
 }
