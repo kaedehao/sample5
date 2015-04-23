@@ -30,7 +30,6 @@ public:
     ~glWidget();
 
 
-
     enum contDraw_E { CDNone=0, CDProgressive=1, CDAnimated=2, CDBenchmark=3, CDBenchmarkTimed=4 };
 
     static contDraw_E getContinuousMode() { return m_app_continuous_mode; }
@@ -108,6 +107,8 @@ public:
 
     static void printMemUsage( bool checked) { m_print_mem_usage = checked ;}
     static void displayFps( bool checked) { m_display_fps = checked ;}
+
+    static void python_run();
 };
 
 #endif // GLWIDGET_H

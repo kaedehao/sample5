@@ -41,6 +41,8 @@ private slots:
 
     void on_checkBox_clicked(bool checked);
 
+    void on_pushButton_Pubnub_released();
+
 private:
     Ui::MainWindow *ui;
 };

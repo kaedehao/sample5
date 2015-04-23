@@ -11,6 +11,10 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TARGET = sample5
 TEMPLATE = app
 
+#Whatever libs you want in your program
+#CONFIG += console
+CONFIG -= app_bundle
+
 SOURCES += main.cpp\
         mainwindow.cpp \
     glwidget.cpp \
@@ -66,7 +70,7 @@ FORMS    += mainwindow.ui
 MOC_DIR = moc
 OBJECTS_DIR = obj
 
-mac: LIBS += -framework GLUT
+mac: LIBS += -framework GLUT -framework Python
 #else:unix|win32: LIBS += -lGLUT
 
 # Added stuff
@@ -75,11 +79,6 @@ INCLUDEPATH +=./util ./src
 
 #Whatever libs you want in your program
 #DESTDIR=./
-
-#Whatever libs you want in your program
-CONFIG += console
-CONFIG -= app_bundle
-
 
 # use this to suppress some warning from boost
 QMAKE_CXXFLAGS_WARN_ON += "-Wno-unused-parameter"

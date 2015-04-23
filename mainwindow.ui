@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>655</width>
-    <height>480</height>
+    <height>514</height>
    </rect>
   </property>
   <property name="font">
@@ -122,7 +122,7 @@
         </property>
        </widget>
       </item>
-      <item row="19" column="0">
+      <item row="20" column="0">
        <widget class="QPushButton" name="pushButton_exit">
         <property name="font">
          <font>
@@ -430,6 +430,18 @@
         </property>
         <property name="checked">
          <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="19" column="0">
+       <widget class="QPushButton" name="pushButton_Pubnub">
+        <property name="font">
+         <font>
+          <pointsize>11</pointsize>
+         </font>
+        </property>
+        <property name="text">
+         <string>Connect</string>
         </property>
        </widget>
       </item>

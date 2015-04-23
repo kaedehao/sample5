@@ -143,3 +143,10 @@ void MainWindow::on_checkBox_clicked(bool checked)
     glWidget::getScene()->updateEnvmapOnOff( checked );
     ui->widget->updateGL();
 }
+
+
+void MainWindow::on_pushButton_Pubnub_released()
+{
+    glWidget::python_run();
+    ui->widget->updateGL();
+}

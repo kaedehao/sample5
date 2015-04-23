@@ -1,5 +1,7 @@
 #include "mainwindow.h"
 #include <QApplication>
+#include <Python/python.h>
+#include <iostream>
 
 int main(int argc, char *argv[])
 {

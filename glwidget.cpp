@@ -22,6 +22,7 @@
 
 #include <QMouseEvent>
 #include "sample5.h"
+#include <Python/Python.h>
 
 using namespace optix;
 
@@ -540,4 +541,59 @@ void glWidget::setContinuousMode(contDraw_E continuous_mode)
   restartProgressiveTimer();
 
   setCurContinuousMode(m_app_continuous_mode);
+}
+
+void glWidget::python_run()
+{
+    //Py_SetProgramName("test"); /* optional but recommended */
+//    Py_Initialize();
+//    PyRun_SimpleString("import sys \n"
+//                       "sys.path.append('/Users/haoluo/Downloads/python-master') \n"
+//                       "from Pubnub import Pubnub \n"
+//                       "pubnub = Pubnub(publish_key='pub-c-07cc1d84-8010-481f-99d0-812b2ce95dfe', subscribe_key='sub-c-bd087e9e-e899-11e4-9685-0619f8945a4f') \n"
+//                       "def _callback(message, channel): \n"
+//                       "    print 'Message received!' \n"
+//                       "    print(message) \n"
+//                       "def _error(message): \n"
+//                       "    print('ERROR: ' + str(message)) \n"
+//                       "data = pubnub.subscribe(channels='my_channel', callback=_callback, error=_error) \n"
+//                       "print data \n");
+//    Py_Finalize();
+
+    PyObject *pName, *pModule, *pDict, *pFunc;
+    PyObject *pArgs, *pValue;
+    std::string moduleName("receive");
+
+    Py_Initialize();
+    PyRun_SimpleString("import sys \n"
+                       "sys.path.append('/Users/haoluo/PycharmProjects/test') \n");
+
+    pName = PyString_FromString( moduleName.c_str() );
+    pModule = PyImport_Import(pName);
+    Py_DECREF(pName);
+
+    if(pModule != NULL){
+        pFunc = PyObject_GetAttrString(pModule, "_subscribe");
+        /* pFunc is a new reference */
+        if(pFunc && PyCallable_Check(pFunc) ){
+            //pArgs = PyTuple_New( 0 );
+            std::cerr<<"callbale ok!"<<std::endl;
+            pValue = PyObject_CallObject(pFunc, NULL);
+            //PyObject_CallObject(pFunc, NULL);
+
+            if (pValue != NULL) {
+                std::cout<<"Result of call: "<< PyInt_AsLong( pValue )<<std::endl;
+                Py_DECREF(pValue);
+            }else{
+                Py_DECREF(pFunc);
+                Py_DECREF(pModule);
+                PyErr_Print();
+                fprintf(stderr, "Call failed\n");
+            }
+        }
+    }else{
+        PyErr_Print();
+        fprintf(stderr, "Failed to load \"%s\"\n", moduleName.c_str() );
+    }
+    Py_Finalize();
 }

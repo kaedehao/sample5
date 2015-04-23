@@ -21,6 +21,17 @@
 
 #include "commonStructs.h"
 
+#include <mach-o/dyld.h>
+#include <stdio.h>  /* defines FILENAME_MAX */
+
+#ifdef WINDOWS
+    #include <direct.h>
+    #define GetCurrentDir _getcwd
+#else
+    #include <unistd.h>
+    #define GetCurrentDir getcwd
+#endif
+
 using namespace optix;
 
 //-----------------------------------------------------------------------------
@@ -45,7 +56,22 @@ SampleScene::SampleScene()
 const char* const SampleScene::ptxpath( const std::string& target, const std::string& base )
 {
     static std::string path;
-    path = "ptx/" + target + "_generated_" + base + ".ptx";
+    char execPath[FILENAME_MAX];
+    uint32_t size = sizeof(execPath);
+
+    if( _NSGetExecutablePath(execPath, &size) != 0 )
+        printf("buffer too small; need size %u\n", size );
+    const std::string& dir = execPath;
+    const std::string& d = dir.substr(0, dir.size()- sizeof("sample5")+1 );
+    //std::cout<<"dir: "<<d<<"\n";
+
+    //if (!GetCurrentDir(cCurrentPath, sizeof(cCurrentPath)))
+    //    std::cerr<< "errno" <<std::endl;
+    //cCurrentPath[sizeof(cCurrentPath) - 1] = '\0'; /* not really required */
+    //printf ("The current working directory is %s \n", cCurrentPath);
+    //const std::string& dir = cCurrentPath;
+
+    path =  d + "ptx/" + target + "_generated_" + base + ".ptx";
     return path.c_str();
 }
 

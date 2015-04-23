@@ -87,6 +87,7 @@ void Sample5Scene::initContext()
     // Pinhole Camera ray gen and exception program
     std::string ptx_path = ptxpath( "sample5", "pinhole_camera.cu" );
     m_context->setRayGenerationProgram( Pinhole, m_context->createProgramFromPTXFile(ptx_path, "pinhole_camera" ) );
+    //std::cout<<"here"<<std::endl;
     m_context->setExceptionProgram( Pinhole, m_context->createProgramFromPTXFile(ptx_path, "exception" ) );
 
     // Adaptive Pinhole Camera ray gen and exception program
@@ -399,7 +400,7 @@ void Sample5Scene::initGeometry()
     //top_level_group->addChild( transform );
 
     sutilCurrentTime(&end);
-    std::cerr << "Time to load " << (m_accel_large_mesh ? "and cluster " : "") << "geometry: " << end-start << " s.\n";
+    std::cout << "Time to load " << (m_accel_large_mesh ? "and cluster " : "") << "geometry: " << end-start << " s."<<std::endl;
 
     // mark acceleration as dirty
     top_level_group->setAcceleration( m_context->createAcceleration( "Trbvh", "Bvh" ) );
@@ -449,10 +450,10 @@ void Sample5Scene::preprocess()
     sutilCurrentTime(&start);
     m_context->compile();
     sutilCurrentTime(&end_compile);
-    std::cerr << "Time to compile kernel: "<<end_compile-start<<" s.\n";
+    std::cout << "Time to compile kernel: "<<end_compile-start<<" s."<<std::endl;
     m_context->launch(0,0);
     sutilCurrentTime(&end_AS_build);
-    std::cerr << "Time to build AS      : "<<end_AS_build-end_compile<<" s.\n";
+    std::cout << "Time to build AS      : "<<end_AS_build-end_compile<<" s."<<std::endl;
 
     // Save cache file
 //    saveAccelCache();
