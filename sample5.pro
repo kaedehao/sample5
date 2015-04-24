@@ -34,7 +34,8 @@ SOURCES += main.cpp\
     util/MeshBase.cpp \
     util/sutil.c \
     util/ImageDisplay.cpp \
-    util/rply-1.01/rply.c
+    util/rply-1.01/rply.c \
+    thread.cpp
 
 HEADERS  += mainwindow.h \
     glwidget.h \
@@ -64,6 +65,7 @@ HEADERS  += mainwindow.h \
     util/sampleConfig.h \
     util/ImageDisplay.h \
     util/rply-1.01/rply.h \
+    thread.h
 
 FORMS    += mainwindow.ui
 

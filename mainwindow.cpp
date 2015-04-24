@@ -4,6 +4,7 @@
 #include <QKeyEvent>
 #include <QFileDialog>
 #include <iostream>
+#include "thread.h"
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -144,9 +145,15 @@ void MainWindow::on_checkBox_clicked(bool checked)
     ui->widget->updateGL();
 }
 
-
-void MainWindow::on_pushButton_Pubnub_released()
+void MainWindow::on_pushButton_Pubnub_clicked()
 {
-    glWidget::python_run();
-    ui->widget->updateGL();
+    connected = !connected;
+    //qDebug()<<"Connection: "<<connected;
+
+    Thread* t = new Thread();
+    if(connected ){
+        QObject::connect(t, SIGNAL(finished()), qapplication, SLOT(quit()) );
+        t->start();
+    }else
+        delete(t);
 }

@@ -108,7 +108,11 @@ public:
     static void printMemUsage( bool checked) { m_print_mem_usage = checked ;}
     static void displayFps( bool checked) { m_display_fps = checked ;}
 
-    static void python_run();
+    //----------------------------------------------------------------------------
+    // Embeeding python interface
+    //----------------------------------------------------------------------------
+    //static void* python_run(void* thread_nr);
+    //static void  multi_thread( void* func(void* thread_nr) );
 };
 
 #endif // GLWIDGET_H

@@ -11,17 +11,16 @@
 #endif
 
 #include "glwidget.h"
-
 #include "mouse.h"
 #include <DeviceMemoryLogger.h>
+#include <NsightHelper.h>
 
 #include <iostream>
 #include <sstream>
 
-#include <NsightHelper.h>
-
 #include <QMouseEvent>
 #include "sample5.h"
+
 #include <Python/Python.h>
 
 using namespace optix;
@@ -91,17 +90,6 @@ void glWidget::initializeGL()
     // as re-size is not explicitly called we need to do this.
     glViewport(0,0,width(),height());
 
-//    sample1Scene = new Sample1();
-//    sample1Scene->setSize(512u, 512u);
-//    sample1Scene->init();
-//    sample1Scene->trace();
-
-//      sample2Scene = new Sample2();
-//      sample2Scene->setSize(512u, 384u);
-//      sample2Scene->setNumBoxes( 6 );
-//      sample2Scene->init();
-//      sample2Scene->trace();
-
     bool adaptive_aa = false;
     Sample5Scene* scene = new Sample5Scene();
     scene->setAdaptiveAA( adaptive_aa );
@@ -114,13 +102,6 @@ void glWidget::initializeGL()
       DeviceMemoryLogger::logCurrentMemoryUsage(m_scene->getContext(), std::cerr, "Initial memory available: " );
       std::cerr << std::endl;
     }
-//    glEnable(GL_CULL_FACE);
-//    glShadeModel(GL_SMOOTH);
-//    glEnable(GL_LIGHTING);
-//    glEnable(GL_LIGHT0);
-
-//    static GLfloat lightPosition[4] = { 0, 0, 10, 1.0 };
-//    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
 
     // If m_app_continuous_mode was already set to CDBenchmark* on the command line then preserve it.
     contDraw_E continuous_mode = adaptive_aa ? glWidget::CDProgressive : glWidget::CDNone;
@@ -167,6 +148,7 @@ void glWidget::initializeGL()
     glLoadIdentity();
 
     glViewport(0, 0, buffer_width, buffer_height);
+
 }
 
 void glWidget::resizeGL(int width, int height)
@@ -231,14 +213,9 @@ void glWidget::mouseMoveEvent ( QMouseEvent * event )
 
 void glWidget::paintGL()
 {
-    //glutSetWindowTitle(window_title);
-    //glutReshapeWindow(width, height);
-
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     display();
-    update();
-    //gluLookAt(posx,posy,1.0,posx,posy,0.0,0.0,-1.0,0.0);
-
+    //update();
 }
 
 void glWidget::display()
@@ -541,59 +518,4 @@ void glWidget::setContinuousMode(contDraw_E continuous_mode)
   restartProgressiveTimer();
 
   setCurContinuousMode(m_app_continuous_mode);
-}
-
-void glWidget::python_run()
-{
-    //Py_SetProgramName("test"); /* optional but recommended */
-//    Py_Initialize();
-//    PyRun_SimpleString("import sys \n"
-//                       "sys.path.append('/Users/haoluo/Downloads/python-master') \n"
-//                       "from Pubnub import Pubnub \n"
-//                       "pubnub = Pubnub(publish_key='pub-c-07cc1d84-8010-481f-99d0-812b2ce95dfe', subscribe_key='sub-c-bd087e9e-e899-11e4-9685-0619f8945a4f') \n"
-//                       "def _callback(message, channel): \n"
-//                       "    print 'Message received!' \n"
-//                       "    print(message) \n"
-//                       "def _error(message): \n"
-//                       "    print('ERROR: ' + str(message)) \n"
-//                       "data = pubnub.subscribe(channels='my_channel', callback=_callback, error=_error) \n"
-//                       "print data \n");
-//    Py_Finalize();
-
-    PyObject *pName, *pModule, *pDict, *pFunc;
-    PyObject *pArgs, *pValue;
-    std::string moduleName("receive");
-
-    Py_Initialize();
-    PyRun_SimpleString("import sys \n"
-                       "sys.path.append('/Users/haoluo/PycharmProjects/test') \n");
-
-    pName = PyString_FromString( moduleName.c_str() );
-    pModule = PyImport_Import(pName);
-    Py_DECREF(pName);
-
-    if(pModule != NULL){
-        pFunc = PyObject_GetAttrString(pModule, "_subscribe");
-        /* pFunc is a new reference */
-        if(pFunc && PyCallable_Check(pFunc) ){
-            //pArgs = PyTuple_New( 0 );
-            std::cerr<<"callbale ok!"<<std::endl;
-            pValue = PyObject_CallObject(pFunc, NULL);
-            //PyObject_CallObject(pFunc, NULL);
-
-            if (pValue != NULL) {
-                std::cout<<"Result of call: "<< PyInt_AsLong( pValue )<<std::endl;
-                Py_DECREF(pValue);
-            }else{
-                Py_DECREF(pFunc);
-                Py_DECREF(pModule);
-                PyErr_Print();
-                fprintf(stderr, "Call failed\n");
-            }
-        }
-    }else{
-        PyErr_Print();
-        fprintf(stderr, "Failed to load \"%s\"\n", moduleName.c_str() );
-    }
-    Py_Finalize();
 }

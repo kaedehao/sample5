@@ -18,6 +18,10 @@ public:
     void keyPressEvent( QKeyEvent* event );
 
 
+    // Pubnub connection implementation
+    bool Pubnub_connected(){ return connected; }
+    void set_QApplication( QApplication* a ){ qapplication = a; }
+
 private slots:
     void on_Slider_sphere_size_valueChanged(int value);
 
@@ -41,10 +45,13 @@ private slots:
 
     void on_checkBox_clicked(bool checked);
 
-    void on_pushButton_Pubnub_released();
+    void on_pushButton_Pubnub_clicked();
 
 private:
     Ui::MainWindow *ui;
+
+    QApplication* qapplication;
+    bool connected = false;
 };
 
 #endif // MAINWINDOW_H
