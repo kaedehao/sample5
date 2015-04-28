@@ -108,6 +108,7 @@ public:
     static void printMemUsage( bool checked) { m_print_mem_usage = checked ;}
     static void displayFps( bool checked) { m_display_fps = checked ;}
 
+    std::string exec(char* cmd);
     //----------------------------------------------------------------------------
     // Embeeding python interface
     //----------------------------------------------------------------------------

@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include "thread.h"
 
 namespace Ui {
 class MainWindow;
@@ -52,6 +53,7 @@ private:
 
     QApplication* qapplication;
     bool connected = false;
+    Thread* t;
 };
 
 #endif // MAINWINDOW_H

@@ -17,11 +17,13 @@
 
 #include <iostream>
 #include <sstream>
+#include <stdio.h>
 
 #include <QMouseEvent>
 #include "sample5.h"
 
 #include <Python/Python.h>
+#include "thread.h"
 
 using namespace optix;
 
@@ -179,8 +181,27 @@ void glWidget::resizeGL(int width, int height)
     updateGL();
 }
 
+std::string glWidget::exec(char* cmd) {
+    FILE* pipe = popen(cmd, "r");
+    if (!pipe) return "ERROR";
+    char buffer[128];
+    std::string result = "";
+    while(!feof(pipe)) {
+        if(fgets(buffer, 128, pipe) != NULL)
+            result += buffer;
+    }
+    pclose(pipe);
+    return result;
+}
+
 void glWidget::mousePressEvent ( QMouseEvent * event )
 {
+    std::string output;
+    //char* cmd;
+    //exec("sample5");
+
+    //printf("terminal output: %s \n", output.c_str());
+
     //sutilCurrentTime( &m_start_time );
     int state = 0; // GLUT_DOWN
     m_mouse->handleMouseFunc( event->button(), state, event->x(), event->y(), event->modifiers() );
@@ -214,8 +235,13 @@ void glWidget::mouseMoveEvent ( QMouseEvent * event )
 void glWidget::paintGL()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    if(Thread::globalDict != NULL)
+        Thread::python_retrieve_camera();
+
     display();
     //update();
+
 }
 
 void glWidget::display()

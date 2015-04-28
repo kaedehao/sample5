@@ -2,17 +2,24 @@
 #define THREAD_H
 
 #include <QtCore>
+#include <Python/Python.h>
 
 class Thread : public QThread
 {
-private:
+public:
     void run()
     {
         //qDebug()<<"From worker thread: "<<currentThreadId();
-        python_run();
+        python_subscribe();
     }
 
-    void python_run();
+    void python_subscribe();
+
+    static void python_retrieve_camera();
+
+
+    static PyObject* globalDict;
+    static PyObject* localDict;
 };
 
 #endif // THREAD_H

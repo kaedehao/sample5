@@ -92,11 +92,9 @@ void Thread::python_subscribe()
     Py_Finalize();
 }
 
-long old_result;
+long old_result = -1;
 void Thread::python_retrieve_camera()
 {
-//    PyRun_SimpleString("print camera_pos");
-
     long result = PyInt_AsLong(PyDict_GetItemString(globalDict, "camera_pos"));
 
     if(result != old_result){

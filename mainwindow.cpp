@@ -4,13 +4,14 @@
 #include <QKeyEvent>
 #include <QFileDialog>
 #include <iostream>
-#include "thread.h"
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+
+    t = new Thread();
 }
 
 MainWindow::~MainWindow()
@@ -148,12 +149,13 @@ void MainWindow::on_checkBox_clicked(bool checked)
 void MainWindow::on_pushButton_Pubnub_clicked()
 {
     connected = !connected;
-    //qDebug()<<"Connection: "<<connected;
+    qDebug()<<"Connection: "<<connected;
+    //printf("Connection: %i \n", connected);
 
-    Thread* t = new Thread();
     if(connected ){
-        QObject::connect(t, SIGNAL(finished()), qapplication, SLOT(quit()) );
+        //QObject::connect(t, SIGNAL(finished()), qapplication, SLOT(quit()) );
         t->start();
-    }else
-        delete(t);
+    }else{
+        t->quit();
+    }
 }
