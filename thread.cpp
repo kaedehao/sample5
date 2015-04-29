@@ -6,8 +6,9 @@
 // Embedding python implementation
 //
 //-----------------------------------------------------------------------------
-PyObject* Thread::globalDict = 0;
-PyObject* Thread::localDict  = 0;
+PyObject* Thread::globalDict     = 0;
+PyObject* Thread::localDict      = 0;
+float     Thread::camera_array[] = {0.0f, 0.0f, 5.0f};
 
 
 void Thread::python_subscribe()
@@ -92,17 +93,51 @@ void Thread::python_subscribe()
     Py_Finalize();
 }
 
-long old_result;
-void Thread::python_retrieve_camera()
+
+void *Thread::python_retrieve_camera()
 {
-//    PyRun_SimpleString("print camera_pos");
+    static float old_camera_array[] = {-1, -1, -1};
+    PyObject* camera_pos_list = PyDict_GetItemString( globalDict, "camera_pos" );
 
-    long result = PyInt_AsLong(PyDict_GetItemString(globalDict, "camera_pos"));
+    if( PyList_Check(camera_pos_list) ){
+        PyObject* camera_pos_tuple = PyList_AsTuple( camera_pos_list );
 
-    if(result != old_result){
-        qDebug()<<"result: "<<result;
-        old_result = result;
+        if( PyTuple_Check(camera_pos_tuple) ){
+            int tuple_size = PyTuple_Size( camera_pos_tuple );
+            //camera_array = malloc( tuple_size * sizeof(float) );
+            for (int i = 0; i < tuple_size; i++){
+                PyObject* item = PyTuple_GetItem( camera_pos_tuple, i );
+                //result = PyNumber_Check(item);
+                //PyObject* temp_item = PyNumber_Long(item);
+                camera_array[i] = PyFloat_AsDouble( item );
+                Py_DECREF(item);
+
+//                if( PyErr_Occurred() ){
+                   // qDebug()<<"py error";
+//                    camera_array[0] = old_camera_array[0];
+//                    camera_array[1] = old_camera_array[1];
+//                    camera_array[2] = old_camera_array[2];
+ //               }
+            }
+        }
+//        if(PyErr_Occurred())
+//            qDebug()<<"py error";
     }
+
+    if( camera_array[0] != old_camera_array[0] ||
+        camera_array[1] != old_camera_array[1] ||
+        camera_array[2] != old_camera_array[2] ){
+
+        qDebug()<<"camera:"<<camera_array[0]
+                           <<camera_array[1]
+                           <<camera_array[2];
+
+        old_camera_array[0] = camera_array[0];
+        old_camera_array[1] = camera_array[1];
+        old_camera_array[2] = camera_array[2];
+    }
+
+    //return camera_array;
 }
 
 //-----------------------------------------------------------------------------

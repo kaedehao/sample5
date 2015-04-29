@@ -15,8 +15,8 @@ public:
 
     void python_subscribe();
 
-    static void python_retrieve_camera();
-
+    static void* python_retrieve_camera();
+    static float camera_array[];
 
     static PyObject* globalDict;
     static PyObject* localDict;

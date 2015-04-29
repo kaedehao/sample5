@@ -196,12 +196,6 @@ std::string glWidget::exec(char* cmd) {
 
 void glWidget::mousePressEvent ( QMouseEvent * event )
 {
-    std::string output;
-    //char* cmd;
-    //exec("sample5");
-
-    //printf("terminal output: %s \n", output.c_str());
-
     //sutilCurrentTime( &m_start_time );
     int state = 0; // GLUT_DOWN
     m_mouse->handleMouseFunc( event->button(), state, event->x(), event->y(), event->modifiers() );
@@ -219,6 +213,15 @@ void glWidget::mouseReleaseEvent(QMouseEvent *event)
 
 void glWidget::mouseMoveEvent ( QMouseEvent * event )
 {
+    if(Thread::globalDict != NULL){
+    Thread::python_retrieve_camera();
+        if(Thread::camera_array != NULL){
+            m_camera->eye = make_float3( Thread::camera_array[0],
+                                         Thread::camera_array[1],
+                                         Thread::camera_array[2]);
+        }
+    }
+
     if(event->buttons() != Qt::NoButton){ // GLUT_UP
         m_mouse->handleMoveFunc( event->x(), event->y() );
         m_scene->signalCameraChanged();
@@ -236,12 +239,9 @@ void glWidget::paintGL()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    if(Thread::globalDict != NULL)
-        Thread::python_retrieve_camera();
 
     display();
-    //update();
-
+    update();
 }
 
 void glWidget::display()
