@@ -213,15 +213,6 @@ void glWidget::mouseReleaseEvent(QMouseEvent *event)
 
 void glWidget::mouseMoveEvent ( QMouseEvent * event )
 {
-    if(Thread::globalDict != NULL){
-    Thread::python_retrieve_camera();
-        if(Thread::camera_array != NULL){
-            m_camera->eye = make_float3( Thread::camera_array[0],
-                                         Thread::camera_array[1],
-                                         Thread::camera_array[2]);
-        }
-    }
-
     if(event->buttons() != Qt::NoButton){ // GLUT_UP
         m_mouse->handleMoveFunc( event->x(), event->y() );
         m_scene->signalCameraChanged();
@@ -235,11 +226,36 @@ void glWidget::mouseMoveEvent ( QMouseEvent * event )
 //    paintGL();
 //}
 
+void glWidget::getMayaCamera()
+{
+    //Get camera data from Maya
+    if( Thread::globalDict != NULL ){
+        Thread::python_retrieve_camera();
+        if( Thread::camera_array_changed ){
+            m_camera->eye = make_float3( Thread::camera_array[0],
+                                         Thread::camera_array[1],
+                                         Thread::camera_array[2]);
+
+            m_camera->lookat = make_float3( Thread::camera_array[3],
+                                            Thread::camera_array[4],
+                                            Thread::camera_array[5]);
+
+            m_camera->up = make_float3( Thread::camera_array[6],
+                                        Thread::camera_array[7],
+                                        Thread::camera_array[8]);
+
+            m_camera->setup();
+            m_scene->signalCameraChanged();
+            //qDebug()<<"camera changed"<<Thread::camera_array_changed;
+        }
+    }
+}
+
 void glWidget::paintGL()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-
+    getMayaCamera();
     display();
     update();
 }

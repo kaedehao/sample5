@@ -6,6 +6,7 @@
 #include "src/random.h"
 #include <QColor>
 #include <iostream>
+#include <mach-o/dyld.h>
 
 #define NUM_SPHERE 2
 
@@ -397,7 +398,7 @@ void Sample5Scene::initGeometry()
     transform = m_context->createTransform();
     transform->setMatrix(0, m, 0);
     transform->setChild( m_geometry_group );
-    top_level_group->addChild( transform );
+    //top_level_group->addChild( transform );
 
     sutilCurrentTime(&end);
     std::cout << "Time to load " << (m_accel_large_mesh ? "and cluster " : "") << "geometry: " << end-start << " s."<<std::endl;

@@ -1,5 +1,6 @@
 #include "thread.h"
 #include <iostream>
+#include <mach-o/dyld.h>
 
 //-----------------------------------------------------------------------------
 //
@@ -8,8 +9,24 @@
 //-----------------------------------------------------------------------------
 PyObject* Thread::globalDict     = 0;
 PyObject* Thread::localDict      = 0;
-float     Thread::camera_array[] = {0.0f, 0.0f, 5.0f};
+float     Thread::camera_array[] = {0.0f, 0.0f, 5.0f,  // eye
+                                    0.0f, 0.0f, 0.0f,  // look at
+                                    0.0f, 1.0f, 0.0f}; // up
 
+bool      Thread::camera_array_changed   = false;
+
+
+void Thread::python_unsubscribe()
+{
+    Py_Initialize();
+    PyRun_SimpleString("#import sys \n"
+                       "#sys.path.append('/Users/haoluo/Downloads/python-master') \n"
+                       "#from Pubnub import Pubnub \n"
+                       "#pubnub = Pubnub(publish_key='pub-c-07cc1d84-8010-481f-99d0-812b2ce95dfe', subscribe_key='sub-c-bd087e9e-e899-11e4-9685-0619f8945a4f') \n"
+                       "pubnub.unsubscribe(channel='my_channel') \n"
+                       "#print 'my_channel' unsubscribed! \n ");
+    Py_Finalize();
+}
 
 void Thread::python_subscribe()
 {
@@ -84,57 +101,87 @@ void Thread::python_subscribe()
     //PyObject_SetAttrString(main, "receive", emb_Module);
 
     PyObject* value = PyInt_FromLong(0);
+
+    Py_INCREF(globalDict);
     PyDict_SetItemString(globalDict, "camera_pos", value);
 
     FILE* file;
-    file = fopen("/Users/haoluo/PycharmProjects/test/receive.py", "r");
+    file = fopen( PubnubPath("receive"), "r");
     PyRun_SimpleFile(file, "receive.py");// Py_single_input, globalDict, localDict);
 
     Py_Finalize();
 }
 
+const char* const Thread::PubnubPath( const std::string& target )
+{
+    static std::string path;
+    char execPath[FILENAME_MAX];
+    uint32_t size = sizeof(execPath);
+
+    if( _NSGetExecutablePath(execPath, &size) != 0 )
+        printf("buffer too small; need size %u\n", size );
+    const std::string& dir = execPath;
+    const std::string& d = dir.substr(0, dir.size()- sizeof("sample5")+1 );
+    //std::cout<<"dir: "<<d<<"\n";
+
+    path =  d + "Pubnub/" + target + ".py";
+    return path.c_str();
+}
 
 void *Thread::python_retrieve_camera()
 {
-    static float old_camera_array[] = {-1, -1, -1};
-    PyObject* camera_pos_list = PyDict_GetItemString( globalDict, "camera_pos" );
+    static float old_camera_array[] = {-1, -1, -1,
+                                       -1, -1, -1,
+                                       -1, -1, -1};
+    PyObject*    camera_pos_list    = PyDict_GetItemString( globalDict, "camera_pos" );
 
     if( PyList_Check(camera_pos_list) ){
-        PyObject* camera_pos_tuple = PyList_AsTuple( camera_pos_list );
+        //qDebug()<<"list size:"<<PyList_Size(camera_pos_list);
+        int list_size = PyList_Size( camera_pos_list );
+        //for(int j = 0; j < list_size; j++){
 
-        if( PyTuple_Check(camera_pos_tuple) ){
-            int tuple_size = PyTuple_Size( camera_pos_tuple );
-            //camera_array = malloc( tuple_size * sizeof(float) );
-            for (int i = 0; i < tuple_size; i++){
-                PyObject* item = PyTuple_GetItem( camera_pos_tuple, i );
-                //result = PyNumber_Check(item);
-                //PyObject* temp_item = PyNumber_Long(item);
-                camera_array[i] = PyFloat_AsDouble( item );
-                Py_DECREF(item);
+            Py_INCREF(camera_pos_list);
+            PyObject* camera_pos_tuple = PyList_AsTuple( camera_pos_list );
 
-//                if( PyErr_Occurred() ){
-                   // qDebug()<<"py error";
-//                    camera_array[0] = old_camera_array[0];
-//                    camera_array[1] = old_camera_array[1];
-//                    camera_array[2] = old_camera_array[2];
- //               }
+            if( PyTuple_Check(camera_pos_tuple) ){
+
+                int tuple_size = PyTuple_Size( camera_pos_tuple );
+                //Py_INCREF(camera_pos_tuple);
+                //camera_array = malloc( tuple_size * sizeof(float) );
+                for (int i = 0; i < tuple_size; i++){
+
+                    PyObject* item = PyTuple_GetItem( camera_pos_tuple, i );
+                    //result = PyNumber_Check(item);
+                    //PyObject* temp_item = PyNumber_Long(item);
+                    camera_array[i] = PyFloat_AsDouble( item );
+                    //Py_DECREF(item);
+                }
+                Py_DECREF(camera_pos_tuple);
             }
-        }
-//        if(PyErr_Occurred())
-//            qDebug()<<"py error";
+            Py_DECREF(camera_pos_list);
+        //}
     }
 
-    if( camera_array[0] != old_camera_array[0] ||
-        camera_array[1] != old_camera_array[1] ||
-        camera_array[2] != old_camera_array[2] ){
+    for( int k = 0; k < 9; k++ ){
+        camera_array_changed = camera_array[k] == old_camera_array[k] ? false : true;
+        if( camera_array_changed )
+            break;
+    }
 
-        qDebug()<<"camera:"<<camera_array[0]
-                           <<camera_array[1]
-                           <<camera_array[2];
+    if( camera_array_changed){
 
-        old_camera_array[0] = camera_array[0];
-        old_camera_array[1] = camera_array[1];
-        old_camera_array[2] = camera_array[2];
+//        qDebug()<<"  camera:"<<camera_array[0]
+//                             <<camera_array[1]
+//                             <<camera_array[2]<<"\n"
+//                 <<"look at:"<<camera_array[3]
+//                             <<camera_array[4]
+//                             <<camera_array[5]<<"\n"
+//                 <<"     up:"<<camera_array[6]
+//                             <<camera_array[7]
+//                             <<camera_array[8];
+
+        for( int l = 0; l < 9; l++ )
+            old_camera_array[l] = camera_array[l];
     }
 
     //return camera_array;
@@ -142,7 +189,7 @@ void *Thread::python_retrieve_camera()
 
 //-----------------------------------------------------------------------------
 //
-// Embedding python implementation
+// Embedding python implementation with pthread
 //
 //-----------------------------------------------------------------------------
 //void* show_window(void* thread_nr)

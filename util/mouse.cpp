@@ -539,9 +539,9 @@ void PinholeCamera::transform( const Matrix4x4& trans )
   float3 cen = lookat;         // TODO: Add logic for various rotation types (eg, flythrough)
 
   Matrix4x4 frame = initWithBasis( normalize(camera_u),
-                                         normalize(camera_v),
-                                         normalize(-lookdir),
-                                         cen );
+                                   normalize(camera_v),
+                                   normalize(-lookdir),
+                                   cen );
   Matrix4x4 frame_inv = inverse( frame );
 
   Matrix4x4 final_trans = frame * trans * frame_inv;

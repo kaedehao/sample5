@@ -42,6 +42,8 @@ protected:
     void paintGL();
     //void paintEvent(QPaintEvent *event);
 
+    void getMayaCamera();
+
     void mouseMoveEvent( QMouseEvent *event );
     void mousePressEvent( QMouseEvent *event );
     void mouseReleaseEvent( QMouseEvent *event );
