@@ -98,7 +98,8 @@ public:
     optix::Context& getContext() { return m_context; }
 
     // Scene API
-    void updateGeometry( float radius );
+    void updateSphere( float radius );
+    void updateGeometry(float x, float y, float z);
     void updateMaterial( float refraction_index );
     void updateLights( int index, float position );
     void updateAcceleration( bool accel );

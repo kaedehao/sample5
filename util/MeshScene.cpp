@@ -64,7 +64,7 @@ MeshScene::MeshScene():
 
 
 MeshScene::MeshScene(bool accel_cache_loaded, bool accel_caching_on, bool accel_large_mesh):
-  m_accel_builder("Sbvh"),
+  m_accel_builder("Trbvh"),
   m_accel_traverser("Bvh"),
   m_accel_refine("0"),
   m_accel_cache_loaded( accel_cache_loaded ),

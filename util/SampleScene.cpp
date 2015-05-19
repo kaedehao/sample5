@@ -232,7 +232,7 @@ SampleScene::updateCPUMode()
 // Scene update
 //
 //-----------------------------------------------------------------------------
-void SampleScene::updateGeometry( float radius)//, float center )
+void SampleScene::updateSphere( float radius)//, float center )
 {
     Group            top_level_group = m_context["top_object"]-> getGroup();
     Transform        transform       = top_level_group->getChild<Transform>( 0 );
@@ -277,7 +277,7 @@ void SampleScene::updateLights(int index, float pos){
     index = 0;
     /* Lights */
     BasicLight lights[] = {
-        { make_float3( pos, 40.0f, 0.0f ), make_float3( 1.0f, 1.0f, 1.0f ), 1 }
+        { make_float3( pos, 40.0f, 30.0f ), make_float3( 1.0f, 1.0f, 1.0f ), 1 }
     };
 
     memcpy( m_context["lights"]->getBuffer()->map(), lights, sizeof(lights) );
@@ -338,4 +338,28 @@ void SampleScene::updateEnvmapOnOff(bool envmap)
         m_context->setMissProgram( 0, m_context->createProgramFromPTXFile( ptx_path, "miss" ) );
         m_context["bg_color"]->setFloat( make_float3( 0.3f, 0.3f, 0.3f ) );
     }
+}
+
+
+void SampleScene::updateGeometry( float x, float y, float z )
+{
+    Group            top_level_group = m_context["top_object"]-> getGroup();
+    Transform        transform       = top_level_group->getChild<Transform>( 1 );
+    //GeometryGroup    geometrygroup   = m_geometry_group;
+    //GeometryInstance instance        = geometrygroup->getChild( 0 );
+    //Geometry         geometry          = instance->getGeometry();
+
+    // Initial transform matrix
+    const float tx=-2.0f, ty=0.0f, tz=0.0f;
+    const float sx=x, sy=y, sz=z;
+    // Matrices are row-major.
+    float m[16] = { sx, 0, 0, tx,
+                    0, sy, 0, ty,
+                    0, 0, sz, tz,
+                    0, 0, 0, 1 };
+
+    //m[0] = m[5] = m[10] *= 5;
+
+    transform->setMatrix(0, m, 0);
+    top_level_group->getAcceleration()->markDirty();
 }

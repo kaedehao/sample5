@@ -27,6 +27,10 @@ public:
 
     static float     camera_array[];
     static bool      camera_array_changed;
+
+    static float     geometry_array[];
+    static bool      geometry_array_changed;
+
     static PyObject* globalDict;
     static PyObject* localDict;
 };

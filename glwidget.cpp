@@ -248,6 +248,12 @@ void glWidget::getMayaCamera()
             m_scene->signalCameraChanged();
             //qDebug()<<"camera changed"<<Thread::camera_array_changed;
         }
+
+        if( Thread::geometry_array_changed ){
+            m_scene->updateGeometry(Thread::geometry_array[0],
+                                    Thread::geometry_array[1],
+                                    Thread::geometry_array[2]);
+        }
     }
 }
 

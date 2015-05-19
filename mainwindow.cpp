@@ -75,7 +75,7 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
 void MainWindow::on_Slider_sphere_size_valueChanged(int value)
 {
     float radius = value / 10.0f;
-    ui->widget->getScene()->updateGeometry( radius );
+    ui->widget->getScene()->updateSphere( radius );
     ui->widget->updateGL();
 }
 

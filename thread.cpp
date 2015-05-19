@@ -16,6 +16,11 @@ float     Thread::camera_array[] = {0.0f, 0.0f, 5.0f,  // eye
 bool      Thread::camera_array_changed   = false;
 
 
+float     Thread::geometry_array[] = {1.0f, 1.0f, 1.0f}; // scale
+bool      Thread::geometry_array_changed = false;
+
+
+
 void Thread::python_unsubscribe()
 {
     Py_Initialize();
@@ -133,6 +138,9 @@ void *Thread::python_retrieve_camera()
     static float old_camera_array[] = {-1, -1, -1,
                                        -1, -1, -1,
                                        -1, -1, -1};
+
+    static float old_geometry_array[] = {-1, -1, -1};
+
     PyObject*    camera_pos_list    = PyDict_GetItemString( globalDict, "camera_pos" );
 
     if( PyList_Check(camera_pos_list) ){
@@ -168,6 +176,12 @@ void *Thread::python_retrieve_camera()
             break;
     }
 
+    for( int k = 9; k < 12; k++ ){ // geometry
+        geometry_array_changed = geometry_array[k-9] == old_geometry_array[k-9] ? false : true;
+        if( geometry_array_changed )
+            break;
+    }
+
     if( camera_array_changed){
 
 //        qDebug()<<"  camera:"<<camera_array[0]
@@ -184,6 +198,13 @@ void *Thread::python_retrieve_camera()
             old_camera_array[l] = camera_array[l];
     }
 
+    if( geometry_array_changed){ // geometry
+//        qDebug()<<"scale:"<<geometry_array[0]
+//                          <<geometry_array[1]
+//                          <<geometry_array[2];
+        for( int l = 9; l < 12; l++ )
+            old_geometry_array[l-9] = geometry_array[l-9];
+    }
     //return camera_array;
 }
 

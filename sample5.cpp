@@ -23,7 +23,7 @@ Sample5Scene::Sample5Scene():
   m_adaptive_aa( false ),
 
     m_camera_mode       ( CM_PINHOLE ),
-    m_shade_mode        ( SM_PHONG ),
+    m_shade_mode        ( SM_AO ),
     m_aa_enabled        ( false ),
     m_ground_plane_enabled ( false ),
     m_ao_radius         ( 1.0f ),
@@ -145,12 +145,16 @@ void Sample5Scene::initContext()
 
 void Sample5Scene::initLights()
 {
-    // Lights buffer
     BasicLight lights[] = {
-      { make_float3( -60.0f,  30.0f, -120.0f ), make_float3( 0.2f, 0.2f, 0.25f )*m_light_scale, 0, 0 },
-      { make_float3( -60.0f,   0.0f,  120.0f ), make_float3( 0.1f, 0.1f, 0.10f )*m_light_scale, 0, 0 },
-      { make_float3(  60.0f,  60.0f,   60.0f ), make_float3( 0.7f, 0.7f, 0.65f )*m_light_scale, 1, 0 }
+        { make_float3( 60.0f, 40.0f, 30.0f ), make_float3( 1.0f, 1.0f, 1.0f ), 1 }
     };
+
+    // Lights buffer
+//    BasicLight lights[] = {
+//      { make_float3( -60.0f,  30.0f, -120.0f ), make_float3( 0.2f, 0.2f, 0.25f )*m_light_scale, 0, 0 },
+//      { make_float3( -60.0f,   0.0f,  120.0f ), make_float3( 0.1f, 0.1f, 0.10f )*m_light_scale, 0, 0 },
+//      { make_float3(  60.0f,  60.0f,   60.0f ), make_float3( 0.7f, 0.7f, 0.65f )*m_light_scale, 1, 0 }
+//    };
 
     Buffer light_buffer = m_context->createBuffer( RT_BUFFER_INPUT );
     light_buffer->setFormat( RT_FORMAT_USER );
@@ -214,7 +218,6 @@ void Sample5Scene::initMaterial()
     floor_matl["reflectivity2"]->setFloat( 0.0f, 0.0f, 0.0f);
 
   //Mesh Materials
-  m_shade_mode = SM_PHONG;
   switch( m_shade_mode ) {
     case SM_PHONG: {
       // Use the default obj_material created by OptixMesh if model has no material, but use this for the ground plane, if any
@@ -342,7 +345,7 @@ void Sample5Scene::initGeometry()
         m[3] += 3.0f;
         transform->setMatrix( 0, m, 0 );
         transform->setChild( geometrygroup );
-        top_level_group->addChild( transform );
+        //top_level_group->addChild( transform );
     }
 
     // Floor
@@ -379,7 +382,7 @@ void Sample5Scene::initGeometry()
       }
     }
 
-    loader.setOptixMaterial(0, glass_matl);
+    //loader.setOptixMaterial(0, glass_matl);
 
     m_aabb = loader.getSceneBBox();
 
@@ -398,7 +401,7 @@ void Sample5Scene::initGeometry()
     transform = m_context->createTransform();
     transform->setMatrix(0, m, 0);
     transform->setChild( m_geometry_group );
-    //top_level_group->addChild( transform );
+    top_level_group->addChild( transform );
 
     sutilCurrentTime(&end);
     std::cout << "Time to load " << (m_accel_large_mesh ? "and cluster " : "") << "geometry: " << end-start << " s."<<std::endl;
@@ -509,7 +512,7 @@ void Sample5Scene::trace( const RayGenCameraData& camera_data )
       m_context["sqrt_diffuse_samples"]->setInt( 3 );
     }
 
-    m_context->launch( getEntryPoint(),
+    m_context->launch( 0,//getEntryPoint(),
                        static_cast<unsigned int>(buffer_width),
                        static_cast<unsigned int>(buffer_height) );
 
